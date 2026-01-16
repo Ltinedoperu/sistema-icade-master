@@ -9,14 +9,14 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Estado para guardar la info de la empresa (Logo y Nombre)
+  // Estado para el logo y nombre
   const [empresa, setEmpresa] = useState({ 
       nombre: 'ICADE PERÚ', 
       logo_url: '' 
   });
 
-  // AL CARGAR: Buscamos el logo y nombre en la base de datos
   useEffect(() => {
+    // 1. Cargar Logo y Nombre de la Empresa
     const fetchConfig = async () => {
       try {
         const { data } = await supabase.from('configuracion').select('nombre_empresa, logo_url').single();
@@ -26,9 +26,7 @@ const Login = () => {
                 logo_url: data.logo_url || ''
             });
         }
-      } catch (e) {
-        console.log("Usando configuración por defecto");
-      }
+      } catch (e) { console.log("Config por defecto"); }
     };
     fetchConfig();
   }, []);
@@ -37,25 +35,32 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      // Guardar el rol en localStorage para saber quién entró
-      const { data: usuario } = await supabase
+      // 2. CAMBIO CLAVE: Buscar directamente en la tabla 'usuarios'
+      // Verificamos si existe alguien con ese email Y esa contraseña
+      const { data: usuario, error } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('*')
         .eq('email', email)
+        .eq('password', password) // Compara con la columna password (que suele ser el DNI)
         .single();
-        
-      localStorage.setItem('role', usuario ? usuario.rol : 'promotor');
+
+      if (error || !usuario) {
+        throw new Error("Correo o contraseña incorrectos (o el usuario no existe en la tabla).");
+      }
+
+      if (!usuario.activo) {
+        throw new Error("Este usuario ha sido desactivado por el administrador.");
+      }
+
+      // 3. Si existe, guardar datos y entrar
+      localStorage.setItem('role', usuario.rol);
+      localStorage.setItem('user_email', usuario.email);
+      localStorage.setItem('user_name', usuario.nombre); // Para mostrar "Hola, Juan" si quieres luego
       
       navigate('/dashboard');
+
     } catch (error) {
-      alert('Error de acceso: ' + error.message);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -65,17 +70,15 @@ const Login = () => {
     <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-[#151e32] border border-slate-800 rounded-3xl p-8 shadow-2xl">
         
-        {/* --- AQUÍ ESTÁ LA MAGIA DEL LOGO --- */}
+        {/* LOGO EMPRESA */}
         <div className="flex flex-col items-center mb-8">
             {empresa.logo_url ? (
-                // Si hay logo subido, mostramos la imagen
                 <img 
                     src={empresa.logo_url} 
                     alt="Logo Empresa" 
                     className="h-24 w-auto object-contain mb-4 bg-white/5 p-2 rounded-xl" 
                 />
             ) : (
-                // Si NO hay logo, mostramos la "I" por defecto
                 <div className="w-20 h-20 bg-amber-500 rounded-2xl flex items-center justify-center text-[#0B1120] font-black text-4xl mb-4 shadow-lg shadow-amber-500/20 -rotate-3">
                     I
                 </div>
@@ -104,7 +107,7 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-400 mb-2 ml-1">Contraseña / DNI</label>
+            <label className="block text-xs font-bold uppercase text-slate-400 mb-2 ml-1">Contraseña (DNI)</label>
             <div className="relative">
                 <Lock className="absolute left-4 top-3.5 text-slate-500" size={20} />
                 <input
