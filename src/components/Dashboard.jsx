@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { LogOut, Search, FileText, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, Download, Share2, DollarSign, Calendar, GraduationCap, PieChart, Filter, Check, XCircle, Sun, Moon, Settings, Upload, Building, MapPin, Phone, CheckCircle, CreditCard } from 'lucide-react';
 
-// --- GRÁFICOS ---
+// --- GRÁFICOS (BLINDADO) ---
 const SimpleBarChart = ({ data, isDark }) => {
     const safeData = data || [];
     const valores = safeData.map(d => d.value);
@@ -260,6 +260,18 @@ const Dashboard = () => {
   const handleAddCurso = async (e) => { e.preventDefault(); if(nuevoCurso.nombre) { await supabase.from('cursos').insert([nuevoCurso]); setNuevoCurso({...nuevoCurso, nombre:''}); fetchData(); }};
   const handleDelCurso = async (id) => { if(confirm("¿Borrar?")) { await supabase.from('cursos').delete().eq('id', id); fetchData(); }};
 
+  // --- CONTROL DE ACCESO AL MENÚ (LO QUE PEDISTE) ---
+  // Promotor solo ve "ventas" pero con el nombre "Registrar Participante"
+  const menuItems = currentUserRole === 'promotor' 
+      ? ['ventas'] 
+      : ['ventas', 'reportes', 'cursos', 'equipo'];
+
+  // Función para ponerle el nombre correcto a la pestaña
+  const getTabName = (tabKey) => {
+      if (tabKey === 'ventas') return 'Registrar Participante';
+      return tabKey; // Reportes, Cursos, Equipo se quedan igual
+  };
+
   return (
     <div className={`min-h-screen font-sans pb-20 relative transition-colors duration-300 ${theme.bg} ${theme.text}`}>
       
@@ -282,10 +294,13 @@ const Dashboard = () => {
           </button>
 
           <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100 border border-slate-300'}`}>
-             {['ventas', 'reportes', 'cursos', 'equipo'].map((v) => (
-                 <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`}>{v}</button>
+             {menuItems.map((v) => (
+                 <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`}>
+                    {getTabName(v)}
+                 </button>
              ))}
-             {/* CONFIGURACIÓN (Solo Admin) */}
+             
+             {/* CONFIGURACIÓN (OCULTO PARA PROMOTOR) */}
              {currentUserRole === 'admin' && (
                  <button onClick={() => setView('configuracion')} className={`px-3 py-1.5 rounded-md transition-all ${view === 'configuracion' ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`} title="Configuración"><Settings size={18}/></button>
              )}
@@ -333,12 +348,13 @@ const Dashboard = () => {
                             {loading ? <tr><td colSpan="7" className="p-8 text-center text-slate-500">Cargando...</td></tr> : filteredVentas.map((venta) => (
                                 <tr key={venta.id} className={`${theme.tableRow} transition-colors`}>
                                     <td className="px-6 py-4 border-b border-inherit text-center">
-                                        {currentUserRole !== 'supervisor' ? (
+                                        {/* Acciones de estado ocultas para promotor si así lo deseas, pero las dejé visibles si es que ellos registran y ven estado */}
+                                        {currentUserRole !== 'supervisor' && currentUserRole !== 'promotor' && (
                                             <div className={`flex justify-center gap-1 mb-1 p-1 rounded-lg border w-fit mx-auto ${darkMode ? 'bg-[#0B1120] border-slate-700' : 'bg-slate-200 border-slate-300'}`}>
                                                 <button onClick={()=>cambiarEstadoFicha(venta.id, 'aprobado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'aprobado' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-emerald-500'}`} title="Aprobar"><Check size={14}/></button>
                                                 <button onClick={()=>cambiarEstadoFicha(venta.id, 'rechazado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'rechazado' ? 'bg-rose-500 text-white' : 'text-slate-400 hover:text-rose-500'}`} title="Rechazar"><XCircle size={14}/></button>
                                             </div>
-                                        ) : null}
+                                        )}
                                         <span className={`text-[9px] uppercase font-bold tracking-wider ${venta.estado_ficha==='aprobado'?'text-emerald-500':venta.estado_ficha==='rechazado'?'text-rose-500':'text-amber-500'}`}>{venta.estado_ficha || 'Pendiente'}</span>
                                     </td>
                                     <td className="px-6 py-4 border-b border-inherit"><div className="flex flex-col"><span className={`font-mono text-xs ${theme.textDim}`}>{new Date(venta.created_at).toLocaleDateString()}</span><span className="text-[10px] text-emerald-500 font-bold uppercase mt-1">{obtenerNombreAsesor(venta.promotor_email, venta.promotor_nombre)}</span></div></td>
@@ -374,8 +390,8 @@ const Dashboard = () => {
             </>
         )}
 
-        {/* --- VISTA CONFIGURACIÓN (Blindada) --- */}
-        {view === 'configuracion' && (
+        {/* --- VISTA CONFIGURACIÓN (Solo Admin) --- */}
+        {view === 'configuracion' && currentUserRole === 'admin' && (
             <div className={`max-w-2xl mx-auto p-8 rounded-2xl border shadow-lg animate-fadeIn ${theme.card}`}>
                 <div className="flex items-center gap-3 mb-8 border-b border-slate-700/20 pb-4">
                     <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20">
@@ -438,7 +454,8 @@ const Dashboard = () => {
             </div>
         )}
 
-        {view === 'reportes' && (
+        {/* --- REPORTES (Solo Admin/Supervisor) --- */}
+        {view === 'reportes' && currentUserRole !== 'promotor' && (
             <div className="space-y-8 animate-fadeIn">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold flex items-center gap-2"><PieChart className="text-amber-500"/> Reportes de Gestión</h2>
@@ -448,28 +465,28 @@ const Dashboard = () => {
             </div>
         )}
 
-        {view === 'equipo' && (
+        {/* --- EQUIPO (Solo Admin) --- */}
+        {view === 'equipo' && currentUserRole !== 'promotor' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={`${theme.card} p-6 rounded-2xl border h-fit`}>
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Shield className="text-amber-500" /> Gestión de Equipo</h3>
-                    {/* BOTÓN CREAR: SOLO ADMIN */}
                     {currentUserRole === 'admin' && (
                         <button onClick={() => abrirUsuario()} className="bg-amber-600 hover:bg-amber-500 text-[#0B1120] font-bold py-2 px-4 rounded-xl flex items-center gap-2 w-full justify-center mb-4"><Plus size={20} /> Registrar Personal</button>
                     )}
                     <p className={`text-xs text-center ${theme.textDim}`}>La clave de acceso será el número de DNI.</p>
                 </div>
                 <div className="lg:col-span-2 space-y-4">{usuarios.map(u => (<div key={u.id} className={`p-5 rounded-2xl border flex justify-between items-center ${!u.activo ? 'opacity-60' : ''} ${theme.card}`}><div className="flex items-center gap-3"><div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'}`}>{u.nombre?.charAt(0).toUpperCase()}</div><div><h4 className="font-bold">{u.nombre} {u.apellidos}</h4><p className={`text-sm ${theme.textDim}`}>{u.rol} • {u.dni}</p></div></div><div className="flex gap-2">
-                    {/* BOTONES ACCIÓN: SOLO ADMIN */}
                     {currentUserRole === 'admin' && (<><button onClick={() => abrirUsuario(u)} className={`p-2 rounded hover:bg-slate-500/10 text-amber-500`}><Edit size={16}/></button><button onClick={()=>toggleUserStatus(u)} className={`p-2 rounded hover:bg-slate-500/10 text-rose-500`}><Power size={16}/></button></>)}
                 </div></div>))}</div>
             </div>
         )}
 
-        {view === 'cursos' && (
+        {/* --- CURSOS (Solo Admin/Supervisor) --- */}
+        {view === 'cursos' && currentUserRole !== 'promotor' && (
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={`${theme.card} p-6 rounded-2xl border h-fit`}>
                     <h3 className="text-xl font-bold mb-4"><Plus className="inline mr-2 text-amber-500"/> Nuevo Curso</h3>
-                    {currentUserRole !== 'supervisor' && (
+                    {currentUserRole === 'admin' && (
                         <form onSubmit={handleAddCurso} className="space-y-4"><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={nuevoCurso.nivel} onChange={e=>setNuevoCurso({...nuevoCurso, nivel:e.target.value})}><option value="Inicial">Inicial</option><option value="Primaria">Primaria</option><option value="Secundaria">Secundaria</option></select><input className={`w-full border rounded-xl p-3 ${theme.input}`} placeholder="Nombre del curso" value={nuevoCurso.nombre} onChange={e=>setNuevoCurso({...nuevoCurso, nombre:e.target.value})}/><button className="w-full bg-amber-600 p-3 rounded-xl font-bold text-black">Guardar</button></form>
                     )}
                 </div>
