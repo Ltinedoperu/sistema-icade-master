@@ -17,7 +17,7 @@ const SimpleBarChart = ({ data, isDark }) => {
         <div className={`flex items-end gap-2 h-32 pt-4 border-b ${borderColor}`}>
             {safeData.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-80 hover:opacity-100" style={{ height: `${(d.value / max) * 100}%` }}>
+                    <div className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-70 hover:opacity-100" style={{ height: `${(d.value / max) * 100}%` }}>
                         <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${tooltipBg}`}>
                             {d.value}
                         </span>
@@ -42,7 +42,7 @@ const Dashboard = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // DATOS EMPRESA (Inicializado seguro)
+  // Empresa
   const [empresa, setEmpresa] = useState({ 
       nombre_empresa: 'ICADE MANAGER', 
       logo_url: '', 
@@ -94,7 +94,7 @@ const Dashboard = () => {
       localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
-  // --- TEMA REFINADO ---
+  // --- TEMA ---
   const theme = {
       bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-200',
       text: darkMode ? 'text-slate-200' : 'text-slate-900',
@@ -102,7 +102,7 @@ const Dashboard = () => {
       textAccent: darkMode ? 'text-amber-500' : 'text-amber-700',
       card: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-md',
       nav: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-sm',
-      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-slate-50 border-slate-400 text-slate-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500',
+      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-slate-50 border-slate-400 text-slate-900 focus:border-amber-500',
       tableHead: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-100 text-slate-800 border-b border-slate-300 font-bold',
       tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-blue-50 border-slate-300 bg-white',
       divider: darkMode ? 'divide-slate-800' : 'divide-slate-300',
@@ -122,7 +122,6 @@ const Dashboard = () => {
         calcularEstadisticas(v || []);
         const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); setCursos(c || []);
         
-        // Carga Segura de Configuración
         const { data: conf } = await supabase.from('configuracion').select('*').single();
         if (conf) {
             setEmpresa({
@@ -137,7 +136,6 @@ const Dashboard = () => {
     setLoading(false);
   };
 
-  // --- FUNCIONES CONFIGURACIÓN (Blindadas) ---
   const guardarConfiguracion = async (e) => {
       e.preventDefault();
       try {
@@ -148,7 +146,7 @@ const Dashboard = () => {
               await supabase.from('configuracion').insert([empresa]);
           }
           alert("Configuración guardada.");
-      } catch (err) { alert("Error al guardar (Verifica que la tabla 'configuracion' exista)."); }
+      } catch (err) { alert("Error al guardar."); }
   };
 
   const handleLogoUpload = async (e) => {
@@ -161,7 +159,7 @@ const Dashboard = () => {
           if (error) throw error;
           const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
           setEmpresa({ ...empresa, logo_url: data.publicUrl });
-      } catch (error) { alert("Error subiendo logo: " + error.message); } 
+      } catch (error) { alert("Error subiendo logo."); } 
       finally { setUploadingLogo(false); }
   };
 
@@ -199,22 +197,18 @@ const Dashboard = () => {
       return matchSearch && matchPromoter && matchCity && matchUgel && matchDate;
   });
 
+  // --- ACCIONES ---
   const abrirEditar = (venta) => { setEditForm(venta); setModalEditOpen(true); };
   const guardarEdicion = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('clientes').update({
-        nombre: editForm.nombre, dni: editForm.dni, celular: editForm.celular, whatsapp: editForm.whatsapp,
-        correo: editForm.correo, institucion: editForm.institucion, ugel: editForm.ugel, ciudad: editForm.ciudad,
-        condicion_laboral: editForm.condicion_laboral, modalidad_pago: editForm.modalidad_pago, observaciones: editForm.observaciones,
-        tipo_registro: editForm.tipo_registro, modalidad_estudio: editForm.modalidad_estudio, programa: editForm.programa,
-        numero_ficha_fisica: editForm.numero_ficha_fisica
-    }).eq('id', editForm.id);
-    if (!error) { alert("Registro actualizado"); setModalEditOpen(false); fetchData(); } else { alert("Error: " + error.message); }
+    const { error } = await supabase.from('clientes').update(editForm).eq('id', editForm.id);
+    if (!error) { alert("Registro actualizado"); setModalEditOpen(false); fetchData(); } 
   };
 
   const abrirFicha = async (venta) => {
-    setFichaData(venta); setModalFichaOpen(true);
+    setFichaData(venta); 
     setHistorialPagos([]); 
+    setModalFichaOpen(true); 
     const { data } = await supabase.from('historial_pagos').select('*').eq('cliente_id', venta.id).order('fecha_pago', { ascending: true });
     setHistorialPagos(data || []);
   };
@@ -226,13 +220,9 @@ const Dashboard = () => {
       setModalPayOpen(true);
   };
   const registrarPago = async (e) => {
-      e.preventDefault(); if (!nuevoPago.concepto || !nuevoPago.monto) return alert("Faltan datos");
+      e.preventDefault(); 
       const { error } = await supabase.from('historial_pagos').insert([{ cliente_id: payData.id, ...nuevoPago }]);
-      if (!error) { 
-          alert("Pago registrado."); 
-          setModalPayOpen(false); 
-          if(modalFichaOpen && fichaData?.id === payData.id) abrirFicha(payData); 
-      } else { alert(error.message); }
+      if (!error) { alert("Pago registrado."); setModalPayOpen(false); if(modalFichaOpen) abrirFicha(payData); } 
   };
 
   const cambiarEstadoFicha = async (id, nuevoEstado) => {
@@ -246,6 +236,7 @@ const Dashboard = () => {
   const descargarImagen = async (url) => { try { const res = await fetch(url); const blob = await res.blob(); const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.download = `ICADE_DOC.jpg`; document.body.appendChild(link); link.click(); document.body.removeChild(link); } catch (e) { alert("Error"); }};
   const compartirWhatsapp = (url) => { window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank'); };
 
+  // --- GESTIÓN DE USUARIOS (SOLO ADMIN) ---
   const abrirUsuario = (u=null) => { 
       if (u) setUserForm(u); else setUserForm({ id: null, nombre: '', apellidos: '', dni: '', celular: '', email: '', rol: 'promotor', activo: true }); 
       setModalUserOpen(true); 
@@ -253,20 +244,19 @@ const Dashboard = () => {
   
   const guardarUsuario = async (e) => { 
       e.preventDefault(); 
-      if (!userForm.dni) return alert("El DNI es obligatorio."); 
       const payload = { ...userForm, password: userForm.dni }; 
       if (!userForm.id) { 
           const { id, ...dataToSend } = payload;
           const { error } = await supabase.from('usuarios').insert([dataToSend]); 
           if (!error) { alert("Usuario Creado"); setModalUserOpen(false); fetchData(); } 
-          else alert(error.message); 
       } else { 
           const { error } = await supabase.from('usuarios').update(payload).eq('id', userForm.id); 
           if (!error) { alert("Usuario Actualizado"); setModalUserOpen(false); fetchData(); } 
       } 
   };
   
-  const toggleUserStatus = async (u) => { if(u.rol!=='admin' && confirm("¿Cambiar estado?")) { await supabase.from('usuarios').update({activo:!u.activo}).eq('id', u.id); fetchData(); }};
+  const toggleUserStatus = async (u) => { if(confirm("¿Cambiar estado de acceso?")) { await supabase.from('usuarios').update({activo:!u.activo}).eq('id', u.id); fetchData(); }};
+  
   const handleAddCurso = async (e) => { e.preventDefault(); if(nuevoCurso.nombre) { await supabase.from('cursos').insert([nuevoCurso]); setNuevoCurso({...nuevoCurso, nombre:''}); fetchData(); }};
   const handleDelCurso = async (id) => { if(confirm("¿Borrar?")) { await supabase.from('cursos').delete().eq('id', id); fetchData(); }};
 
@@ -277,7 +267,7 @@ const Dashboard = () => {
       <nav className={`${theme.nav} px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-40 border-b transition-colors duration-300`}>
         <div className="flex items-center gap-3">
             {empresa.logo_url ? (
-                <img src={empresa.logo_url} alt="Logo" className="w-12 h-12 object-contain rounded-lg bg-white p-1" />
+                <img src={empresa.logo_url} alt="Logo" className="w-12 h-12 object-contain rounded-lg bg-white p-1 shadow-sm" />
             ) : (
                 <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center text-[#0B1120] font-bold text-xl -rotate-3">I</div>
             )}
@@ -291,10 +281,11 @@ const Dashboard = () => {
               {darkMode ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-600"/>}
           </button>
 
-          <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100 border border-slate-200'}`}>
+          <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100 border border-slate-300'}`}>
              {['ventas', 'reportes', 'cursos', 'equipo'].map((v) => (
                  <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`}>{v}</button>
              ))}
+             {/* CONFIGURACIÓN (Solo Admin) */}
              {currentUserRole === 'admin' && (
                  <button onClick={() => setView('configuracion')} className={`px-3 py-1.5 rounded-md transition-all ${view === 'configuracion' ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`} title="Configuración"><Settings size={18}/></button>
              )}
@@ -461,12 +452,14 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={`${theme.card} p-6 rounded-2xl border h-fit`}>
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Shield className="text-amber-500" /> Gestión de Equipo</h3>
-                    {currentUserRole !== 'supervisor' && (
+                    {/* BOTÓN CREAR: SOLO ADMIN */}
+                    {currentUserRole === 'admin' && (
                         <button onClick={() => abrirUsuario()} className="bg-amber-600 hover:bg-amber-500 text-[#0B1120] font-bold py-2 px-4 rounded-xl flex items-center gap-2 w-full justify-center mb-4"><Plus size={20} /> Registrar Personal</button>
                     )}
                     <p className={`text-xs text-center ${theme.textDim}`}>La clave de acceso será el número de DNI.</p>
                 </div>
                 <div className="lg:col-span-2 space-y-4">{usuarios.map(u => (<div key={u.id} className={`p-5 rounded-2xl border flex justify-between items-center ${!u.activo ? 'opacity-60' : ''} ${theme.card}`}><div className="flex items-center gap-3"><div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'}`}>{u.nombre?.charAt(0).toUpperCase()}</div><div><h4 className="font-bold">{u.nombre} {u.apellidos}</h4><p className={`text-sm ${theme.textDim}`}>{u.rol} • {u.dni}</p></div></div><div className="flex gap-2">
+                    {/* BOTONES ACCIÓN: SOLO ADMIN */}
                     {currentUserRole === 'admin' && (<><button onClick={() => abrirUsuario(u)} className={`p-2 rounded hover:bg-slate-500/10 text-amber-500`}><Edit size={16}/></button><button onClick={()=>toggleUserStatus(u)} className={`p-2 rounded hover:bg-slate-500/10 text-rose-500`}><Power size={16}/></button></>)}
                 </div></div>))}</div>
             </div>
