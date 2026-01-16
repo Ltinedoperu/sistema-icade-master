@@ -3,19 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { LogOut, Search, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, DollarSign, Check, XCircle, PieChart, Filter, Sun, Moon, GraduationCap } from 'lucide-react';
 
-// --- GRÁFICOS (Simplificado para evitar errores) ---
+// --- GRÁFICOS (Versión Blindada v3) ---
 const SimpleBarChart = ({ data, isDark }) => {
-    // Protección contra datos vacíos
-    const safeData = data || [];
+    // Si no hay datos, mostramos algo vacío para que no explote
+    const safeData = data && Array.isArray(data) ? data : [];
+    
+    // Cálculos seguros
     const valores = safeData.map(d => d.value);
-    // Evitamos división por cero
-    const max = valores.length > 0 ? Math.max(...valores) : 1;
+    const max = valores.length > 0 ? Math.max(...valores) : 100;
 
     return (
         <div className={`flex items-end gap-2 h-32 pt-4 border-b ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
             {safeData.map((d, i) => {
-                // Calculamos el porcentaje antes
-                const porcentaje = (d.value / max) * 100;
+                // Cálculo de porcentaje seguro (evita división por cero)
+                let porcentaje = 0;
+                if (max > 0) porcentaje = (d.value / max) * 100;
+                
                 return (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
                         <div className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-20 hover:opacity-100" style={{ height: `${porcentaje}%` }}>
@@ -75,16 +78,19 @@ const Dashboard = () => {
   const [reportData, setReportData] = useState({ daily: [] });
 
   useEffect(() => { 
+      // 1. Recuperar Rol
       const role = localStorage.getItem('role') || 'promotor';
       setCurrentUserRole(role);
       
-      // Recuperar tema preferido
+      // 2. Recuperar Tema
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) {
           setDarkMode(savedTheme === 'dark');
       }
 
+      // 3. Cargar Datos
       fetchData(); 
+
       const handleEsc = (event) => { if (event.key === 'Escape') { closeAllModals(); }};
       window.addEventListener('keydown', handleEsc); return () => window.removeEventListener('keydown', handleEsc);
   }, []);
@@ -115,10 +121,19 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: u } = await supabase.from('usuarios').select('*').order('rol', { ascending: true }); setUsuarios(u || []);
-    const { data: v } = await supabase.from('clientes').select('*').order('created_at', { ascending: false }); setVentas(v || []); 
-    calcularEstadisticas(v || []);
-    const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); setCursos(c || []);
+    try {
+        const { data: u } = await supabase.from('usuarios').select('*').order('rol', { ascending: true }); 
+        setUsuarios(u || []);
+        
+        const { data: v } = await supabase.from('clientes').select('*').order('created_at', { ascending: false }); 
+        setVentas(v || []); 
+        calcularEstadisticas(v || []);
+        
+        const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); 
+        setCursos(c || []);
+    } catch (error) {
+        console.error("Error cargando datos:", error);
+    }
     setLoading(false);
   };
 
@@ -129,6 +144,7 @@ const Dashboard = () => {
   };
 
   const calcularEstadisticas = (data) => {
+    if (!data) return;
     const hoy = new Date().toLocaleDateString();
     const esteMes = new Date().getMonth();
     const ventasHoy = data.filter(v => new Date(v.created_at).toLocaleDateString() === hoy);
@@ -386,7 +402,6 @@ const Dashboard = () => {
                         <div><label className={`text-xs ml-1 ${theme.textSec}`}>Nombre</label><input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={editForm.nombre} onChange={e=>setEditForm({...editForm, nombre:e.target.value})}/></div>
                         <div><label className={`text-xs ml-1 ${theme.textSec}`}>DNI</label><input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={editForm.dni} onChange={e=>setEditForm({...editForm, dni:e.target.value})}/></div>
                     </div>
-                    {/* ... (Resto de inputs con theme.input) ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className={`text-xs ml-1 ${theme.textSec}`}>Tipo</label><select className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={editForm.tipo_registro} onChange={e=>setEditForm({...editForm, tipo_registro:e.target.value})}><option>Diplomado</option><option>Especialización</option><option>Curso de Capacitación</option><option>Curso de Actualización</option></select></div>
                         <div><label className={`text-xs ml-1 ${theme.textSec}`}>Modalidad</label><select className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={editForm.modalidad_estudio} onChange={e=>setEditForm({...editForm, modalidad_estudio:e.target.value})}><option>Programa Completo</option><option>Acelerada</option></select></div>
@@ -480,6 +495,13 @@ const Dashboard = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1"><label className={`text-[10px] font-bold uppercase ${theme.textSec}`}>Concepto</label><input className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} value={nuevoPago.concepto} onChange={e=>setNuevoPago({...nuevoPago, concepto:e.target.value})} required/></div>
                         <div className="space-y-1"><label className={`text-[10px] font-bold uppercase ${theme.textSec}`}>Monto (S/)</label><input type="number" step="0.01" className={`w-full border rounded-lg p-3 text-sm font-bold text-emerald-500 ${theme.input}`} value={nuevoPago.monto} onChange={e=>setNuevoPago({...nuevoPago, monto:e.target.value})} required/></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1"><label className={`text-[10px] text-slate-400 uppercase font-bold`}>Medio de Pago</label>
+                        <select className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} value={nuevoPago.medio_pago} onChange={e=>setNuevoPago({...nuevoPago, medio_pago:e.target.value})}>
+                            <option>Descuento por Planilla</option><option>Yape</option><option>Plin</option><option>BCP</option><option>Banco de la Nación</option><option>Interbank</option><option>BBVA</option><option>Efectivo</option><option>Otro</option>
+                        </select></div>
+                        <div className="space-y-1"><label className={`text-[10px] text-slate-400 uppercase font-bold`}>Fecha de Pago</label><input type="date" className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} value={nuevoPago.fecha_pago} onChange={e=>setNuevoPago({...nuevoPago, fecha_pago:e.target.value})} required/></div>
                     </div>
                     <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex justify-center gap-2 mt-2 shadow-lg"><Plus size={18}/> Agregar Pago</button>
                 </form>
