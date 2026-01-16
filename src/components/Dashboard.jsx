@@ -42,7 +42,7 @@ const Dashboard = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // DATOS EMPRESA (Inicializado seguro para evitar errores)
+  // DATOS EMPRESA (Inicializado seguro)
   const [empresa, setEmpresa] = useState({ 
       nombre_empresa: 'ICADE MANAGER', 
       logo_url: '', 
@@ -94,6 +94,7 @@ const Dashboard = () => {
       localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
+  // --- TEMA REFINADO ---
   const theme = {
       bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-200',
       text: darkMode ? 'text-slate-200' : 'text-slate-900',
@@ -124,7 +125,6 @@ const Dashboard = () => {
         // Carga Segura de Configuración
         const { data: conf } = await supabase.from('configuracion').select('*').single();
         if (conf) {
-            // Protección contra valores nulos que rompen React
             setEmpresa({
                 nombre_empresa: conf.nombre_empresa || 'ICADE MANAGER',
                 logo_url: conf.logo_url || '',
@@ -291,12 +291,12 @@ const Dashboard = () => {
               {darkMode ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-600"/>}
           </button>
 
-          <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-300'}`}>
+          <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100 border border-slate-200'}`}>
              {['ventas', 'reportes', 'cursos', 'equipo'].map((v) => (
-                 <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-slate-800`}`}>{v}</button>
+                 <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`}>{v}</button>
              ))}
              {currentUserRole === 'admin' && (
-                 <button onClick={() => setView('configuracion')} className={`px-3 py-1.5 rounded-md transition-all ${view === 'configuracion' ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-slate-800`}`} title="Configuración"><Settings size={18}/></button>
+                 <button onClick={() => setView('configuracion')} className={`px-3 py-1.5 rounded-md transition-all ${view === 'configuracion' ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-amber-600`}`} title="Configuración"><Settings size={18}/></button>
              )}
           </div>
           <button onClick={handleLogout} className={`p-2 rounded-lg text-rose-500 border transition-all ${theme.btnGhost}`}><LogOut size={20} /></button>
@@ -305,7 +305,6 @@ const Dashboard = () => {
 
       <main className="max-w-[98%] mx-auto p-4 md:p-6 transition-colors duration-300">
         
-        {/* VISTAS EXISTENTES (Ventas, Reportes, Equipo, Cursos) */}
         {view === 'ventas' && (
             <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
