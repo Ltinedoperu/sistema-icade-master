@@ -3,26 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { LogOut, Search, FileText, User, RefreshCw, Plus, Trash2, Layers, Briefcase, MapPin, Edit, X, Save, MessageCircle, BarChart3, TrendingUp, Users, Shield, Power, Lock, Eye, Download, Share2, ExternalLink, DollarSign, Package, CheckCircle, Calendar, GraduationCap, Zap, PieChart, Filter, Check, XCircle, CreditCard, Building, Sun, Moon } from 'lucide-react';
 
-// --- GRÁFICOS ---
+// --- GRÁFICOS (Adaptados al tema) ---
 const SimpleBarChart = ({ data, isDark }) => {
-    // Protección para evitar errores si data viene vacío
+    // Protección contra datos vacíos
     const safeData = data || [];
-    const valores = safeData.map(d => d.value);
-    const max = valores.length > 0 ? Math.max(...valores) : 1;
-
+    const max = safeData.length > 0 ? Math.max(...safeData.map(d => d.value), 1) : 1;
+    
     return (
         <div className={`flex items-end gap-2 h-32 pt-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
             {safeData.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
                     <div 
-                        className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-40 hover:opacity-100" 
+                        className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-60 hover:opacity-100" 
                         style={{ height: `${(d.value / max) * 100}%` }}
                     >
-                        <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${isDark ? 'text-white bg-black' : 'text-slate-800 bg-white border'}`}>
+                        <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${isDark ? 'text-white bg-black' : 'text-slate-900 bg-white border shadow-sm'}`}>
                             {d.value}
                         </span>
                     </div>
-                    <span className={`text-[10px] truncate w-full text-center ${isDark ? 'text-slate-500' : 'text-slate-600 font-medium'}`}>
+                    <span className={`text-[10px] truncate w-full text-center ${isDark ? 'text-slate-500' : 'text-slate-600 font-bold'}`}>
                         {d.label}
                     </span>
                 </div>
@@ -75,7 +74,7 @@ const Dashboard = () => {
       const role = localStorage.getItem('role') || 'promotor';
       setCurrentUserRole(role);
       
-      // Recuperar preferencia de tema si existe
+      // Recuperar preferencia
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'light') setDarkMode(false);
 
@@ -90,19 +89,25 @@ const Dashboard = () => {
       localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
-  // --- SISTEMA DE COLORES DINÁMICO ---
-  // Aquí definimos qué color usar en cada modo
+  // --- SISTEMA DE COLORES SEGURO ---
   const theme = {
-      bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-100', // Fondo principal (Gris suave en light)
-      text: darkMode ? 'text-slate-200' : 'text-slate-800', // Texto principal
-      textSec: darkMode ? 'text-slate-400' : 'text-slate-500', // Texto secundario
-      card: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-200 shadow-sm', // Tarjetas (Blancas en light)
-      nav: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-200 shadow-sm', // Barra superior
-      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900 focus:ring-amber-500', // Inputs
-      tableHeader: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-50 text-slate-700 border-b border-slate-200',
-      tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-slate-50 border-slate-200',
-      modalBg: darkMode ? 'bg-[#151e32] border-slate-700' : 'bg-white border-slate-200',
-      btnGhost: darkMode ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+      // Fondos
+      bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-100',
+      // Textos
+      text: darkMode ? 'text-slate-200' : 'text-slate-800',
+      textSec: darkMode ? 'text-slate-400' : 'text-slate-500',
+      // Contenedores (Tarjetas)
+      card: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-sm',
+      nav: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-sm',
+      // Inputs
+      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-white border-slate-400 text-slate-900',
+      // Tablas
+      tableHeader: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-200 text-slate-800 border-b border-slate-300',
+      tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-amber-50 border-slate-300',
+      // Modales
+      modalBg: darkMode ? 'bg-[#151e32] border-slate-700' : 'bg-white border-slate-300',
+      // Botones
+      btnGhost: darkMode ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100',
   };
 
   const closeAllModals = () => {
@@ -111,11 +116,12 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: u } = await supabase.from('usuarios').select('*').order('rol', { ascending: true }); setUsuarios(u || []);
-    const { data: v } = await supabase.from('clientes').select('*').order('created_at', { ascending: false }); setVentas(v || []); 
-    calcularEstadisticas(v || []);
-    const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); setCursos(c || []);
-    setLoading(false);
+    try {
+        const { data: u } = await supabase.from('usuarios').select('*').order('rol', { ascending: true }); setUsuarios(u || []);
+        const { data: v } = await supabase.from('clientes').select('*').order('created_at', { ascending: false }); setVentas(v || []); 
+        calcularEstadisticas(v || []);
+        const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); setCursos(c || []);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   const obtenerNombreAsesor = (email, nombreGuardado) => {
@@ -168,8 +174,7 @@ const Dashboard = () => {
 
   const abrirFicha = async (venta) => {
     setFichaData(venta); setModalFichaOpen(true);
-    // Limpiamos historial previo para evitar parpadeos
-    setHistorialPagos([]);
+    setHistorialPagos([]); // Limpiar para evitar errores visuales
     const { data } = await supabase.from('historial_pagos').select('*').eq('cliente_id', venta.id).order('fecha_pago', { ascending: true });
     setHistorialPagos(data || []);
   };
@@ -239,7 +244,7 @@ const Dashboard = () => {
         </div>
         <div className="flex gap-4 overflow-x-auto items-center">
           
-          {/* BOTÓN TEMA (SOL / LUNA) */}
+          {/* BOTÓN TEMA */}
           <button onClick={toggleTheme} className={`p-2 rounded-lg border transition-all ${theme.btnGhost}`}>
               {darkMode ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-600"/>}
           </button>
@@ -380,7 +385,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setModalEditOpen(false)}></div>
             <div className={`w-full max-w-3xl rounded-3xl border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto z-10 ${theme.modalBg}`}>
-                <button onClick={() => setModalEditOpen(false)} className="absolute top-4 right-4 p-2 bg-slate-500/20 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><X size={20}/></button>
+                <button onClick={() => setModalEditOpen(false)} className={`absolute top-4 right-4 p-2 rounded-full transition-colors z-20 ${theme.btnGhost}`}><X size={20}/></button>
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-2 mt-2"><Edit className="text-amber-500"/> Editar Registro</h3>
                 <form onSubmit={guardarEdicion} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -415,23 +420,23 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* 2. FICHA COMPLETA */}
+      {/* 2. FICHA COMPLETA (SOLO LECTURA + LISTA PAGOS) */}
       {modalFichaOpen && fichaData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setModalFichaOpen(false)}></div>
-            <div className={`w-full max-w-5xl rounded-3xl border shadow-2xl relative my-8 overflow-y-auto max-h-[95vh] z-10 flex flex-col ${theme.modalBg} ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                <div className={`flex justify-between items-center p-6 border-b rounded-t-3xl sticky top-0 z-20 ${darkMode ? 'bg-[#0f1623] border-slate-800' : 'bg-white border-slate-200'}`}>
+            <div className={`w-full max-w-5xl rounded-3xl border shadow-2xl relative my-8 overflow-y-auto max-h-[95vh] z-10 flex flex-col ${theme.modalBg}`}>
+                <div className={`flex justify-between items-center p-6 border-b rounded-t-3xl sticky top-0 z-20 ${darkMode ? 'bg-[#0f1623] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
                     <div>
                         <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="text-amber-500"/> {fichaData.tipo_registro}: {fichaData.nombre}</h2>
                         <p className={`text-sm flex gap-2 ${theme.textSec}`}><span>{fichaData.dni}</span> • <span className="text-emerald-500 font-bold">{fichaData.modalidad_estudio}</span></p>
                     </div>
-                    <button onClick={() => setModalFichaOpen(false)} className={`p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors ${darkMode ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}><X size={24}/></button>
+                    <button onClick={() => setModalFichaOpen(false)} className={`p-2 rounded-full transition-colors ${theme.btnGhost}`}><X size={24}/></button>
                 </div>
                 
                 <div className="p-8 space-y-8 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
-                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Datos Personales</h4>
+                            <h4 className={`text-amber-500 font-bold uppercase text-xs border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>Datos Personales</h4>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div><span className={`block ${theme.textSec}`}>Celular</span> <span>{fichaData.celular}</span></div>
                                 <div><span className={`block ${theme.textSec}`}>WhatsApp</span> <span>{fichaData.whatsapp || '-'}</span></div>
@@ -442,7 +447,7 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Información Laboral</h4>
+                            <h4 className={`text-amber-500 font-bold uppercase text-xs border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>Información Laboral</h4>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div><span className={`block ${theme.textSec}`}>Condición</span> <span>{fichaData.condicion_laboral}</span></div>
                                 <div><span className={`block ${theme.textSec}`}>Nivel</span> <span>{fichaData.nivel || '-'}</span></div>
@@ -453,7 +458,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Academico y Documentos</h4>
+                        <h4 className={`text-amber-500 font-bold uppercase text-xs border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>Academico y Documentos</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
                                 <span className={`block text-xs ${theme.textSec}`}>Cursos Inscritos</span>
