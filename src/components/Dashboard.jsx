@@ -1,19 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { LogOut, Search, FileText, User, RefreshCw, Plus, Trash2, Layers, Briefcase, MapPin, Edit, X, Save, MessageCircle, BarChart3, TrendingUp, Users, Shield, Power, Lock, Eye, Download, Share2, ExternalLink, DollarSign, Package, CheckCircle, Calendar, GraduationCap, Zap, PieChart, Filter, Check, XCircle, CreditCard, Building } from 'lucide-react';
+import { LogOut, Search, FileText, User, RefreshCw, Plus, Trash2, Layers, Briefcase, MapPin, Edit, X, Save, MessageCircle, BarChart3, TrendingUp, Users, Shield, Power, Lock, Eye, Download, Share2, ExternalLink, DollarSign, Package, CheckCircle, Calendar, GraduationCap, Zap, PieChart, Filter, Check, XCircle, CreditCard, Building, Sun, Moon } from 'lucide-react';
 
 // --- GRÁFICOS ---
-const SimpleBarChart = ({ data }) => {
-    const max = Math.max(...data.map(d => d.value), 1);
+const SimpleBarChart = ({ data, isDark }) => {
+    // Protección para evitar errores si data viene vacío
+    const safeData = data || [];
+    const valores = safeData.map(d => d.value);
+    const max = valores.length > 0 ? Math.max(...valores) : 1;
+
     return (
-        <div className="flex items-end gap-2 h-32 pt-4 border-b border-slate-700">
-            {data.map((d, i) => (
+        <div className={`flex items-end gap-2 h-32 pt-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+            {safeData.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="w-full bg-emerald-500/20 rounded-t hover:bg-emerald-500/40 transition-all relative group" style={{ height: `${(d.value / max) * 100}%` }}>
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black px-1 rounded">{d.value}</span>
+                    <div 
+                        className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-40 hover:opacity-100" 
+                        style={{ height: `${(d.value / max) * 100}%` }}
+                    >
+                        <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${isDark ? 'text-white bg-black' : 'text-slate-800 bg-white border'}`}>
+                            {d.value}
+                        </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 truncate w-full text-center">{d.label}</span>
+                    <span className={`text-[10px] truncate w-full text-center ${isDark ? 'text-slate-500' : 'text-slate-600 font-medium'}`}>
+                        {d.label}
+                    </span>
                 </div>
             ))}
         </div>
@@ -25,6 +36,9 @@ const Dashboard = () => {
   const [view, setView] = useState('ventas');
   const [loading, setLoading] = useState(true);
   
+  // --- ESTADO DEL TEMA (LIGHT / DARK) ---
+  const [darkMode, setDarkMode] = useState(true);
+
   // Datos
   const [currentUserRole, setCurrentUserRole] = useState('promotor');
   const [ventas, setVentas] = useState([]);
@@ -60,10 +74,36 @@ const Dashboard = () => {
   useEffect(() => { 
       const role = localStorage.getItem('role') || 'promotor';
       setCurrentUserRole(role);
+      
+      // Recuperar preferencia de tema si existe
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') setDarkMode(false);
+
       fetchData(); 
       const handleEsc = (event) => { if (event.key === 'Escape') { closeAllModals(); }};
       window.addEventListener('keydown', handleEsc); return () => window.removeEventListener('keydown', handleEsc);
   }, []);
+
+  const toggleTheme = () => {
+      const newMode = !darkMode;
+      setDarkMode(newMode);
+      localStorage.setItem('theme', newMode ? 'dark' : 'light');
+  };
+
+  // --- SISTEMA DE COLORES DINÁMICO ---
+  // Aquí definimos qué color usar en cada modo
+  const theme = {
+      bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-100', // Fondo principal (Gris suave en light)
+      text: darkMode ? 'text-slate-200' : 'text-slate-800', // Texto principal
+      textSec: darkMode ? 'text-slate-400' : 'text-slate-500', // Texto secundario
+      card: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-200 shadow-sm', // Tarjetas (Blancas en light)
+      nav: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-200 shadow-sm', // Barra superior
+      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900 focus:ring-amber-500', // Inputs
+      tableHeader: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-50 text-slate-700 border-b border-slate-200',
+      tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-slate-50 border-slate-200',
+      modalBg: darkMode ? 'bg-[#151e32] border-slate-700' : 'bg-white border-slate-200',
+      btnGhost: darkMode ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+  };
 
   const closeAllModals = () => {
       setModalEditOpen(false); setModalFichaOpen(false); setModalPayOpen(false); setModalUserOpen(false); setModalImgOpen(false);
@@ -128,6 +168,8 @@ const Dashboard = () => {
 
   const abrirFicha = async (venta) => {
     setFichaData(venta); setModalFichaOpen(true);
+    // Limpiamos historial previo para evitar parpadeos
+    setHistorialPagos([]);
     const { data } = await supabase.from('historial_pagos').select('*').eq('cliente_id', venta.id).order('fecha_pago', { ascending: true });
     setHistorialPagos(data || []);
   };
@@ -184,91 +226,100 @@ const Dashboard = () => {
   const handleDelCurso = async (id) => { if(confirm("¿Borrar?")) { await supabase.from('cursos').delete().eq('id', id); fetchData(); }};
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-slate-200 font-sans pb-20 relative">
-      <nav className="bg-[#151e32] border-b border-slate-800 shadow-lg px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-40">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center text-[#0B1120] font-bold text-xl -rotate-3">I</div>
-        <div><h1 className="text-xl font-bold text-white">ICADE <span className="text-amber-500">ADMIN</span></h1><p className="text-[10px] text-slate-400 uppercase tracking-widest">Rol: {currentUserRole}</p></div></div>
-        <div className="flex gap-4 overflow-x-auto">
-          <div className="flex bg-slate-800 rounded-lg p-1">
-             <button onClick={() => setView('ventas')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap ${view === 'ventas' ? 'bg-amber-500 text-[#0B1120]' : 'text-slate-400'}`}>Registros</button>
-             <button onClick={() => setView('reportes')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap ${view === 'reportes' ? 'bg-amber-500 text-[#0B1120]' : 'text-slate-400'}`}>Reportes</button>
-             <button onClick={() => setView('cursos')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap ${view === 'cursos' ? 'bg-amber-500 text-[#0B1120]' : 'text-slate-400'}`}>Cursos</button>
-             <button onClick={() => setView('equipo')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap ${view === 'equipo' ? 'bg-amber-500 text-[#0B1120]' : 'text-slate-400'}`}>Equipo</button>
+    <div className={`min-h-screen font-sans pb-20 relative transition-colors duration-300 ${theme.bg} ${theme.text}`}>
+      
+      {/* NAVBAR */}
+      <nav className={`${theme.nav} px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-40 border-b transition-colors duration-300`}>
+        <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center text-[#0B1120] font-bold text-xl -rotate-3">I</div>
+            <div>
+                <h1 className="text-xl font-bold">ICADE <span className="text-amber-500">ADMIN</span></h1>
+                <p className={`text-[10px] uppercase font-bold ${theme.textSec}`}>Rol: {currentUserRole}</p>
+            </div>
+        </div>
+        <div className="flex gap-4 overflow-x-auto items-center">
+          
+          {/* BOTÓN TEMA (SOL / LUNA) */}
+          <button onClick={toggleTheme} className={`p-2 rounded-lg border transition-all ${theme.btnGhost}`}>
+              {darkMode ? <Sun size={20} className="text-amber-400"/> : <Moon size={20} className="text-indigo-600"/>}
+          </button>
+
+          <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}>
+             {['ventas', 'reportes', 'cursos', 'equipo'].map((v) => (
+                 <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textSec} hover:text-slate-600`}`}>{v}</button>
+             ))}
           </div>
-          <button onClick={handleLogout} className="p-2 bg-slate-800 rounded-lg text-rose-400 border border-slate-700"><LogOut size={20} /></button>
+          <button onClick={handleLogout} className={`p-2 rounded-lg text-rose-500 border transition-all ${theme.btnGhost}`}><LogOut size={20} /></button>
         </div>
       </nav>
 
-      <main className="max-w-[98%] mx-auto p-4 md:p-6">
+      <main className="max-w-[98%] mx-auto p-4 md:p-6 transition-colors duration-300">
         
         {view === 'ventas' && (
             <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#151e32] p-5 rounded-2xl border border-slate-800 flex items-center gap-4"><div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500"><TrendingUp size={24} /></div><div><p className="text-slate-400 text-sm">Hoy</p><h3 className="text-2xl font-bold text-white">{stats.hoy}</h3></div></div>
-                <div className="bg-[#151e32] p-5 rounded-2xl border border-slate-800 flex items-center gap-4"><div className="p-3 bg-blue-500/10 rounded-xl text-blue-500"><BarChart3 size={24} /></div><div><p className="text-slate-400 text-sm">Mes</p><h3 className="text-2xl font-bold text-white">{stats.mes}</h3></div></div>
-                <div className="bg-[#151e32] p-5 rounded-2xl border border-slate-800 flex items-center gap-4"><div className="p-3 bg-amber-500/10 rounded-xl text-amber-500"><Users size={24} /></div><div><p className="text-slate-400 text-sm">Total</p><h3 className="text-2xl font-bold text-white">{stats.total}</h3></div></div>
+                <div className={`${theme.card} p-5 rounded-2xl border flex items-center gap-4`}><div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500"><TrendingUp size={24} /></div><div><p className={`text-sm ${theme.textSec}`}>Hoy</p><h3 className="text-2xl font-bold">{stats.hoy}</h3></div></div>
+                <div className={`${theme.card} p-5 rounded-2xl border flex items-center gap-4`}><div className="p-3 bg-blue-500/10 rounded-xl text-blue-500"><BarChart3 size={24} /></div><div><p className={`text-sm ${theme.textSec}`}>Mes</p><h3 className="text-2xl font-bold">{stats.mes}</h3></div></div>
+                <div className={`${theme.card} p-5 rounded-2xl border flex items-center gap-4`}><div className="p-3 bg-amber-500/10 rounded-xl text-amber-500"><Users size={24} /></div><div><p className={`text-sm ${theme.textSec}`}>Total</p><h3 className="text-2xl font-bold">{stats.total}</h3></div></div>
             </div>
 
-            <div className="bg-[#151e32] p-4 rounded-2xl border border-slate-800 mb-6 animate-fadeIn">
+            <div className={`${theme.card} p-4 rounded-2xl border mb-6 animate-fadeIn`}>
                 <div className="flex items-center gap-2 mb-3 text-amber-500 font-bold text-sm"><Filter size={16}/> Filtros de Búsqueda</div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <div className="relative"><Search className="absolute left-3 top-2.5 text-slate-500" size={16}/><input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-[#0B1120] border border-slate-700 rounded-xl py-2 px-4 pl-9 text-white text-xs outline-none focus:border-amber-500"/></div>
-                    <select value={filterPromoter} onChange={(e) => setFilterPromoter(e.target.value)} className="bg-[#0B1120] border border-slate-700 rounded-xl py-2 px-3 text-white text-xs outline-none focus:border-amber-500"><option value="">Todos los Promotores</option>{usuarios.filter(u => u.rol === 'promotor').map(u => (<option key={u.id} value={u.email}>{u.nombre} {u.apellidos}</option>))}</select>
-                    <input type="text" placeholder="Ciudad" value={filterCity} onChange={(e) => setFilterCity(e.target.value)} className="bg-[#0B1120] border border-slate-700 rounded-xl py-2 px-3 text-white text-xs outline-none focus:border-amber-500"/>
-                    <input type="text" placeholder="UGEL" value={filterUgel} onChange={(e) => setFilterUgel(e.target.value)} className="bg-[#0B1120] border border-slate-700 rounded-xl py-2 px-3 text-white text-xs outline-none focus:border-amber-500"/>
-                    <div className="flex gap-1"><input type="date" value={filterDateStart} onChange={(e) => setFilterDateStart(e.target.value)} className="w-1/2 bg-[#0B1120] border border-slate-700 rounded-xl p-1 text-white text-[10px] text-center"/><input type="date" value={filterDateEnd} onChange={(e) => setFilterDateEnd(e.target.value)} className="w-1/2 bg-[#0B1120] border border-slate-700 rounded-xl p-1 text-white text-[10px] text-center"/></div>
+                    <div className="relative"><Search className="absolute left-3 top-2.5 text-slate-500" size={16}/><input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full border rounded-xl py-2 px-4 pl-9 text-xs outline-none ${theme.input}`}/></div>
+                    <select value={filterPromoter} onChange={(e) => setFilterPromoter(e.target.value)} className={`border rounded-xl py-2 px-3 text-xs outline-none ${theme.input}`}><option value="">Todos los Promotores</option>{usuarios.filter(u => u.rol === 'promotor').map(u => (<option key={u.id} value={u.email}>{u.nombre} {u.apellidos}</option>))}</select>
+                    <input type="text" placeholder="Ciudad" value={filterCity} onChange={(e) => setFilterCity(e.target.value)} className={`border rounded-xl py-2 px-3 text-xs outline-none ${theme.input}`}/>
+                    <input type="text" placeholder="UGEL" value={filterUgel} onChange={(e) => setFilterUgel(e.target.value)} className={`border rounded-xl py-2 px-3 text-xs outline-none ${theme.input}`}/>
+                    <div className="flex gap-1"><input type="date" value={filterDateStart} onChange={(e) => setFilterDateStart(e.target.value)} className={`w-1/2 border rounded-xl p-1 text-[10px] text-center ${theme.input}`}/><input type="date" value={filterDateEnd} onChange={(e) => setFilterDateEnd(e.target.value)} className={`w-1/2 border rounded-xl p-1 text-[10px] text-center ${theme.input}`}/></div>
                 </div>
             </div>
 
-            <div className="bg-[#151e32] rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+            <div className={`${theme.card} rounded-2xl border overflow-hidden shadow-xl`}>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left border-collapse">
-                        <thead className="bg-[#0f1623] text-amber-500 uppercase font-bold text-xs">
+                        <thead className={`${theme.tableHeader} font-bold text-xs uppercase`}>
                             <tr>
-                                <th className="px-6 py-4 border-b border-slate-700 text-center">Estado</th>
-                                <th className="px-6 py-4 border-b border-slate-700">Asesor</th>
-                                <th className="px-6 py-4 border-b border-slate-700">Participante</th>
-                                <th className="px-6 py-4 border-b border-slate-700">Laboral</th>
-                                <th className="px-6 py-4 border-b border-slate-700">Pago</th>
-                                <th className="px-6 py-4 border-b border-slate-700">Programa</th>
-                                <th className="px-6 py-4 border-b border-slate-700 text-center">Acciones</th>
+                                <th className="px-6 py-4 border-b border-inherit text-center">Estado</th>
+                                <th className="px-6 py-4 border-b border-inherit">Asesor</th>
+                                <th className="px-6 py-4 border-b border-inherit">Participante</th>
+                                <th className="px-6 py-4 border-b border-inherit">Laboral</th>
+                                <th className="px-6 py-4 border-b border-inherit">Pago</th>
+                                <th className="px-6 py-4 border-b border-inherit">Programa</th>
+                                <th className="px-6 py-4 border-b border-inherit text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                             {loading ? <tr><td colSpan="7" className="p-8 text-center text-slate-500">Cargando...</td></tr> : filteredVentas.map((venta) => (
-                                <tr key={venta.id} className="hover:bg-[#1a253a]">
-                                    <td className="px-6 py-4 border-b border-slate-800/50 text-center">
+                                <tr key={venta.id} className={`${theme.tableRow} transition-colors`}>
+                                    <td className="px-6 py-4 border-b border-inherit text-center">
                                         {currentUserRole !== 'supervisor' ? (
-                                            <div className="flex justify-center gap-1 mb-1 bg-[#0B1120] p-1 rounded-lg border border-slate-700 w-fit mx-auto">
-                                                <button onClick={()=>cambiarEstadoFicha(venta.id, 'aprobado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'aprobado' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-emerald-500'}`} title="Aprobar"><Check size={14}/></button>
-                                                <button onClick={()=>cambiarEstadoFicha(venta.id, 'rechazado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'rechazado' ? 'bg-rose-500 text-white' : 'text-slate-500 hover:text-rose-500'}`} title="Rechazar"><XCircle size={14}/></button>
+                                            <div className={`flex justify-center gap-1 mb-1 p-1 rounded-lg border w-fit mx-auto ${darkMode ? 'bg-[#0B1120] border-slate-700' : 'bg-slate-100 border-slate-300'}`}>
+                                                <button onClick={()=>cambiarEstadoFicha(venta.id, 'aprobado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'aprobado' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-emerald-500'}`} title="Aprobar"><Check size={14}/></button>
+                                                <button onClick={()=>cambiarEstadoFicha(venta.id, 'rechazado')} className={`p-1.5 rounded-md transition-all ${venta.estado_ficha === 'rechazado' ? 'bg-rose-500 text-white' : 'text-slate-400 hover:text-rose-500'}`} title="Rechazar"><XCircle size={14}/></button>
                                             </div>
                                         ) : null}
                                         <span className={`text-[9px] uppercase font-bold tracking-wider ${venta.estado_ficha==='aprobado'?'text-emerald-500':venta.estado_ficha==='rechazado'?'text-rose-500':'text-amber-500'}`}>{venta.estado_ficha || 'Pendiente'}</span>
                                     </td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50"><div className="flex flex-col"><span className="text-white font-mono">{new Date(venta.created_at).toLocaleDateString()}</span><span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded w-fit mt-1 uppercase">{obtenerNombreAsesor(venta.promotor_email, venta.promotor_nombre)}</span></div></td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50">
-                                        <div className="font-bold text-white flex items-center gap-2">{venta.nombre}</div>
-                                        <div className="text-xs text-slate-400">{venta.dni}</div>
-                                        <div className="text-[10px] text-slate-500 mt-1">Ficha: {venta.numero_ficha_fisica || 'S/N'}</div>
+                                    <td className="px-6 py-4 border-b border-inherit"><div className="flex flex-col"><span className={`font-mono text-xs ${theme.textSec}`}>{new Date(venta.created_at).toLocaleDateString()}</span><span className="text-[10px] text-emerald-500 font-bold uppercase mt-1">{obtenerNombreAsesor(venta.promotor_email, venta.promotor_nombre)}</span></div></td>
+                                    <td className="px-6 py-4 border-b border-inherit">
+                                        <div className="font-bold flex items-center gap-2">{venta.nombre}</div>
+                                        <div className={`text-xs ${theme.textSec}`}>{venta.dni}</div>
+                                        <div className={`text-[10px] ${theme.textSec} mt-1 opacity-70`}>Ficha: {venta.numero_ficha_fisica || 'S/N'}</div>
                                     </td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50"><div className="text-slate-200">{venta.condicion_laboral}</div><div className="text-xs text-slate-500">{venta.institucion}</div><div className="text-[10px] text-slate-600">{venta.ciudad}</div></td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50"><span className="px-2 py-1 rounded text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">{venta.modalidad_pago}</span></td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50 text-xs text-slate-400 max-w-xs">
+                                    <td className="px-6 py-4 border-b border-inherit"><div className="text-sm">{venta.condicion_laboral}</div><div className={`text-xs ${theme.textSec}`}>{venta.institucion}</div><div className={`text-[10px] ${theme.textSec}`}>{venta.ciudad}</div></td>
+                                    <td className="px-6 py-4 border-b border-inherit"><span className="px-2 py-1 rounded text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">{venta.modalidad_pago}</span></td>
+                                    <td className="px-6 py-4 border-b border-inherit text-xs max-w-xs">
                                         <div className="text-amber-500 font-bold mb-1">{venta.tipo_registro}</div>
                                         {venta.modalidad_estudio === 'Acelerada' && <span className="bg-purple-500/20 text-purple-400 px-1 rounded border border-purple-500/30 text-[10px] mr-1">Acelerada</span>}
-                                        <span className="truncate block">{venta.programa}</span>
+                                        <span className={`truncate block ${theme.textSec}`}>{venta.programa}</span>
                                     </td>
-                                    <td className="px-6 py-4 border-b border-slate-800/50 text-center">
+                                    <td className="px-6 py-4 border-b border-inherit text-center">
                                         <div className="flex justify-center gap-2">
-                                            {/* Ver Ficha (Disponible para todos) */}
-                                            <button onClick={() => abrirFicha(venta)} className="p-2 bg-blue-900/30 text-blue-400 rounded border border-blue-500/50 hover:bg-blue-500 hover:text-white transition-colors" title="Ver Ficha"><Eye size={16}/></button>
-                                            
-                                            {/* Acciones Bloqueadas para Supervisor */}
+                                            <button onClick={() => abrirFicha(venta)} className={`p-2 rounded border transition-colors ${theme.btnGhost} hover:text-blue-500 hover:border-blue-500`} title="Ver Ficha"><Eye size={16}/></button>
                                             {currentUserRole !== 'supervisor' && (
                                                 <>
-                                                    <button onClick={() => abrirEditar(venta)} className="p-2 bg-amber-900/30 text-amber-400 rounded border border-amber-500/50 hover:bg-amber-500 hover:text-black transition-colors" title="Editar"><Edit size={16}/></button>
-                                                    <button onClick={() => abrirPagar(venta)} className="p-2 bg-emerald-900/30 text-emerald-400 rounded border border-emerald-500/50 hover:bg-emerald-500 hover:text-black transition-colors" title="Pagar"><DollarSign size={16}/></button>
+                                                    <button onClick={() => abrirEditar(venta)} className={`p-2 rounded border transition-colors ${theme.btnGhost} hover:text-amber-500 hover:border-amber-500`} title="Editar"><Edit size={16}/></button>
+                                                    <button onClick={() => abrirPagar(venta)} className={`p-2 rounded border transition-colors ${theme.btnGhost} hover:text-emerald-500 hover:border-emerald-500`} title="Pagar"><DollarSign size={16}/></button>
                                                 </>
                                             )}
                                         </div>
@@ -285,41 +336,37 @@ const Dashboard = () => {
         {view === 'reportes' && (
             <div className="space-y-8 animate-fadeIn">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2"><PieChart className="text-amber-500"/> Reportes de Gestión</h2>
-                    <div className="flex gap-2"><input type="date" className="bg-[#151e32] border border-slate-700 rounded p-2 text-white text-xs"/><input type="date" className="bg-[#151e32] border border-slate-700 rounded p-2 text-white text-xs"/></div>
+                    <h2 className="text-2xl font-bold flex items-center gap-2"><PieChart className="text-amber-500"/> Reportes de Gestión</h2>
+                    <div className="flex gap-2"><input type="date" className={`border rounded p-2 text-xs ${theme.input}`}/><input type="date" className={`border rounded p-2 text-xs ${theme.input}`}/></div>
                 </div>
-                <div className="bg-[#151e32] p-6 rounded-2xl border border-slate-800"><h3 className="text-white font-bold mb-4">Ventas Diarias (Mes Actual)</h3><SimpleBarChart data={reportData.daily} /></div>
+                <div className={`${theme.card} p-6 rounded-2xl border`}><h3 className="font-bold mb-4">Ventas Diarias (Mes Actual)</h3><SimpleBarChart data={reportData.daily} isDark={darkMode} /></div>
             </div>
         )}
 
         {view === 'equipo' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="bg-[#151e32] p-6 rounded-2xl border border-slate-800 h-fit">
-                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Shield className="text-amber-500" /> Gestión de Equipo</h3>
-                    {/* Botón crear oculto para supervisor */}
+                <div className={`${theme.card} p-6 rounded-2xl border h-fit`}>
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Shield className="text-amber-500" /> Gestión de Equipo</h3>
                     {currentUserRole !== 'supervisor' && (
                         <button onClick={() => abrirUsuario()} className="bg-amber-600 hover:bg-amber-500 text-[#0B1120] font-bold py-2 px-4 rounded-xl flex items-center gap-2 w-full justify-center mb-4"><Plus size={20} /> Registrar Personal</button>
                     )}
-                    <p className="text-xs text-slate-500 text-center">La clave de acceso será el número de DNI.</p>
+                    <p className={`text-xs text-center ${theme.textSec}`}>La clave de acceso será el número de DNI.</p>
                 </div>
-                <div className="lg:col-span-2 space-y-4">{usuarios.map(u => (<div key={u.id} className={`p-5 rounded-2xl border flex justify-between items-center ${!u.activo ? 'bg-slate-900/50 opacity-60' : 'bg-[#151e32] border-slate-800'}`}><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white">{u.nombre?.charAt(0).toUpperCase()}</div><div><h4 className="font-bold text-white">{u.nombre} {u.apellidos}</h4><p className="text-sm text-slate-400">{u.rol} • {u.dni}</p></div></div><div className="flex gap-2">
-                    {/* Solo admin puede editar usuarios */}
-                    {currentUserRole === 'admin' && (<><button onClick={() => abrirUsuario(u)} className="p-2 hover:bg-slate-700 rounded text-amber-500"><Edit size={16}/></button><button onClick={()=>toggleUserStatus(u)} className="p-2 hover:bg-slate-700 rounded text-rose-500"><Power size={16}/></button></>)}
+                <div className="lg:col-span-2 space-y-4">{usuarios.map(u => (<div key={u.id} className={`p-5 rounded-2xl border flex justify-between items-center ${!u.activo ? 'opacity-60' : ''} ${theme.card}`}><div className="flex items-center gap-3"><div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'}`}>{u.nombre?.charAt(0).toUpperCase()}</div><div><h4 className="font-bold">{u.nombre} {u.apellidos}</h4><p className={`text-sm ${theme.textSec}`}>{u.rol} • {u.dni}</p></div></div><div className="flex gap-2">
+                    {currentUserRole === 'admin' && (<><button onClick={() => abrirUsuario(u)} className={`p-2 rounded hover:bg-slate-500/10 text-amber-500`}><Edit size={16}/></button><button onClick={()=>toggleUserStatus(u)} className={`p-2 rounded hover:bg-slate-500/10 text-rose-500`}><Power size={16}/></button></>)}
                 </div></div>))}</div>
             </div>
         )}
 
         {view === 'cursos' && (
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="bg-[#151e32] p-6 rounded-2xl border border-slate-800 h-fit">
-                    <h3 className="text-xl font-bold text-white mb-4"><Plus className="inline mr-2 text-amber-500"/> Nuevo Curso</h3>
-                    {/* Supervisor no crea cursos */}
+                <div className={`${theme.card} p-6 rounded-2xl border h-fit`}>
+                    <h3 className="text-xl font-bold mb-4"><Plus className="inline mr-2 text-amber-500"/> Nuevo Curso</h3>
                     {currentUserRole !== 'supervisor' && (
-                        <form onSubmit={handleAddCurso} className="space-y-4"><select className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={nuevoCurso.nivel} onChange={e=>setNuevoCurso({...nuevoCurso, nivel:e.target.value})}><option>Inicial</option><option>Primaria</option><option>Secundaria</option></select><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" placeholder="Nombre del curso" value={nuevoCurso.nombre} onChange={e=>setNuevoCurso({...nuevoCurso, nombre:e.target.value})}/><button className="w-full bg-amber-600 p-3 rounded-xl font-bold text-black">Guardar</button></form>
+                        <form onSubmit={handleAddCurso} className="space-y-4"><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={nuevoCurso.nivel} onChange={e=>setNuevoCurso({...nuevoCurso, nivel:e.target.value})}><option value="Inicial">Inicial</option><option value="Primaria">Primaria</option><option value="Secundaria">Secundaria</option></select><input className={`w-full border rounded-xl p-3 ${theme.input}`} placeholder="Nombre del curso" value={nuevoCurso.nombre} onChange={e=>setNuevoCurso({...nuevoCurso, nombre:e.target.value})}/><button className="w-full bg-amber-600 p-3 rounded-xl font-bold text-black">Guardar</button></form>
                     )}
                 </div>
-                <div className="lg:col-span-2 space-y-2">{cursos.map(c=><div key={c.id} className="bg-[#151e32] p-4 rounded-xl border border-slate-800 flex justify-between"><div><span className="text-xs text-amber-500 block uppercase font-bold">{c.nivel}</span><span className="text-white">{c.nombre}</span></div>
-                {/* Supervisor no borra cursos */}
+                <div className="lg:col-span-2 space-y-2">{cursos.map(c=><div key={c.id} className={`${theme.card} p-4 rounded-xl border flex justify-between`}><div><span className="text-xs text-amber-500 block uppercase font-bold">{c.nivel}</span><span className="">{c.nombre}</span></div>
                 {currentUserRole === 'admin' && <button onClick={()=>handleDelCurso(c.id)} className="text-rose-500"><Trash2 size={18}/></button>}
                 </div>)}</div>
              </div>
@@ -332,118 +379,118 @@ const Dashboard = () => {
       {modalEditOpen && editForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setModalEditOpen(false)}></div>
-            <div className="bg-[#151e32] w-full max-w-3xl rounded-3xl border border-slate-700 shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto z-10">
-                <button onClick={() => setModalEditOpen(false)} className="absolute top-4 right-4 p-2 bg-slate-800 rounded-full text-white hover:bg-rose-600 transition-colors z-20"><X size={20}/></button>
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 mt-2"><Edit className="text-amber-500"/> Editar Registro</h3>
+            <div className={`w-full max-w-3xl rounded-3xl border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto z-10 ${theme.modalBg}`}>
+                <button onClick={() => setModalEditOpen(false)} className="absolute top-4 right-4 p-2 bg-slate-500/20 rounded-full hover:bg-rose-500 hover:text-white transition-colors"><X size={20}/></button>
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-2 mt-2"><Edit className="text-amber-500"/> Editar Registro</h3>
                 <form onSubmit={guardarEdicion} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Nombre</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.nombre} onChange={e=>setEditForm({...editForm, nombre:e.target.value})}/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">DNI</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.dni} onChange={e=>setEditForm({...editForm, dni:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Nombre</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.nombre} onChange={e=>setEditForm({...editForm, nombre:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>DNI</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.dni} onChange={e=>setEditForm({...editForm, dni:e.target.value})}/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Tipo</label><select className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.tipo_registro} onChange={e=>setEditForm({...editForm, tipo_registro:e.target.value})}><option>Diplomado</option><option>Especialización</option><option>Curso de Capacitación</option><option>Curso de Actualización</option><option>Nombramiento Docente</option><option>Ascenso Docente</option></select></div>
-                        <div><label className="text-xs text-slate-400 ml-1">Modalidad</label><select className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.modalidad_estudio} onChange={e=>setEditForm({...editForm, modalidad_estudio:e.target.value})}><option>Programa Completo</option><option>Acelerada</option></select></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Tipo</label><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.tipo_registro} onChange={e=>setEditForm({...editForm, tipo_registro:e.target.value})}><option>Diplomado</option><option>Especialización</option><option>Curso de Capacitación</option><option>Curso de Actualización</option><option>Nombramiento Docente</option><option>Ascenso Docente</option></select></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Modalidad</label><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.modalidad_estudio} onChange={e=>setEditForm({...editForm, modalidad_estudio:e.target.value})}><option>Programa Completo</option><option>Acelerada</option></select></div>
                     </div>
-                    <div><label className="text-xs text-slate-400 ml-1">Cursos Inscritos (Programa)</label><textarea className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white h-24 text-sm font-mono" value={editForm.programa || ''} onChange={e=>setEditForm({...editForm, programa:e.target.value})}/></div>
+                    <div><label className={`text-xs ml-1 ${theme.textSec}`}>Cursos Inscritos (Programa)</label><textarea className={`w-full border rounded-xl p-3 h-24 text-sm font-mono ${theme.input}`} value={editForm.programa || ''} onChange={e=>setEditForm({...editForm, programa:e.target.value})}/></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Celular</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.celular} onChange={e=>setEditForm({...editForm, celular:e.target.value})}/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">WhatsApp</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.whatsapp} onChange={e=>setEditForm({...editForm, whatsapp:e.target.value})}/></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Centro Laboral</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.institucion} onChange={e=>setEditForm({...editForm, institucion:e.target.value})}/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">UGEL</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.ugel} onChange={e=>setEditForm({...editForm, ugel:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Celular</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.celular} onChange={e=>setEditForm({...editForm, celular:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>WhatsApp</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.whatsapp} onChange={e=>setEditForm({...editForm, whatsapp:e.target.value})}/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Ficha Física</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.numero_ficha_fisica} onChange={e=>setEditForm({...editForm, numero_ficha_fisica:e.target.value})}/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">Ciudad</label><input className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.ciudad} onChange={e=>setEditForm({...editForm, ciudad:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Centro Laboral</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.institucion} onChange={e=>setEditForm({...editForm, institucion:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>UGEL</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.ugel} onChange={e=>setEditForm({...editForm, ugel:e.target.value})}/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Condición</label><select className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.condicion_laboral} onChange={e=>setEditForm({...editForm, condicion_laboral:e.target.value})}><option>Nombrado</option><option>Contratado</option><option>Sin Vínculo</option></select></div>
-                        <div><label className="text-xs text-slate-400 ml-1">Pago</label><select className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white" value={editForm.modalidad_pago} onChange={e=>setEditForm({...editForm, modalidad_pago:e.target.value})}><option>Pago a Cuenta</option><option>Descuento por Planilla</option></select></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Ficha Física</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.numero_ficha_fisica} onChange={e=>setEditForm({...editForm, numero_ficha_fisica:e.target.value})}/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Ciudad</label><input className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.ciudad} onChange={e=>setEditForm({...editForm, ciudad:e.target.value})}/></div>
                     </div>
-                    <div><label className="text-xs text-slate-400 ml-1">Observaciones</label><textarea className="w-full bg-[#0B1120] border border-slate-700 rounded-xl p-3 text-white h-24" value={editForm.observaciones || ''} onChange={e=>setEditForm({...editForm, observaciones:e.target.value})}/></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Condición</label><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.condicion_laboral} onChange={e=>setEditForm({...editForm, condicion_laboral:e.target.value})}><option>Nombrado</option><option>Contratado</option><option>Sin Vínculo</option></select></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Pago</label><select className={`w-full border rounded-xl p-3 ${theme.input}`} value={editForm.modalidad_pago} onChange={e=>setEditForm({...editForm, modalidad_pago:e.target.value})}><option>Pago a Cuenta</option><option>Descuento por Planilla</option></select></div>
+                    </div>
+                    <div><label className={`text-xs ml-1 ${theme.textSec}`}>Observaciones</label><textarea className={`w-full border rounded-xl p-3 h-24 ${theme.input}`} value={editForm.observaciones || ''} onChange={e=>setEditForm({...editForm, observaciones:e.target.value})}/></div>
                     <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-[#0B1120] font-bold py-3 rounded-xl shadow-lg mt-2">Guardar Cambios</button>
                 </form>
             </div>
         </div>
       )}
 
-      {/* 2. FICHA COMPLETA (SOLO LECTURA + LISTA PAGOS) */}
+      {/* 2. FICHA COMPLETA */}
       {modalFichaOpen && fichaData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setModalFichaOpen(false)}></div>
-            <div className="bg-[#151e32] w-full max-w-5xl rounded-3xl border border-slate-700 shadow-2xl relative my-8 overflow-y-auto max-h-[95vh] z-10 flex flex-col">
-                <div className="flex justify-between items-center p-6 border-b border-slate-800 bg-[#0f1623] rounded-t-3xl sticky top-0 z-20">
+            <div className={`w-full max-w-5xl rounded-3xl border shadow-2xl relative my-8 overflow-y-auto max-h-[95vh] z-10 flex flex-col ${theme.modalBg} ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                <div className={`flex justify-between items-center p-6 border-b rounded-t-3xl sticky top-0 z-20 ${darkMode ? 'bg-[#0f1623] border-slate-800' : 'bg-white border-slate-200'}`}>
                     <div>
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2"><GraduationCap className="text-amber-500"/> {fichaData.tipo_registro}: {fichaData.nombre}</h2>
-                        <p className="text-slate-400 text-sm flex gap-2"><span>{fichaData.dni}</span> • <span className="text-emerald-400 font-bold">{fichaData.modalidad_estudio}</span></p>
+                        <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="text-amber-500"/> {fichaData.tipo_registro}: {fichaData.nombre}</h2>
+                        <p className={`text-sm flex gap-2 ${theme.textSec}`}><span>{fichaData.dni}</span> • <span className="text-emerald-500 font-bold">{fichaData.modalidad_estudio}</span></p>
                     </div>
-                    <button onClick={() => setModalFichaOpen(false)} className="p-2 bg-slate-800 rounded-full text-white hover:bg-rose-600 transition-colors"><X size={24}/></button>
+                    <button onClick={() => setModalFichaOpen(false)} className={`p-2 rounded-full hover:bg-rose-500 hover:text-white transition-colors ${darkMode ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}><X size={24}/></button>
                 </div>
                 
                 <div className="p-8 space-y-8 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
-                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-800 pb-2">Datos Personales</h4>
+                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Datos Personales</h4>
                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><span className="text-slate-500 block">Celular</span> <span className="text-white">{fichaData.celular}</span></div>
-                                <div><span className="text-slate-500 block">WhatsApp</span> <span className="text-white">{fichaData.whatsapp || '-'}</span></div>
-                                <div className="col-span-2"><span className="text-slate-500 block">Correo</span> <span className="text-white">{fichaData.correo || '-'}</span></div>
-                                <div className="col-span-2"><span className="text-slate-500 block">Dirección</span> <span className="text-white">{fichaData.direccion || '-'}</span></div>
-                                <div><span className="text-slate-500 block">Ciudad</span> <span className="text-white">{fichaData.ciudad || '-'}</span></div>
-                                <div><span className="text-slate-500 block">Ficha Física</span> <span className="text-white font-bold">{fichaData.numero_ficha_fisica || 'N/A'}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>Celular</span> <span>{fichaData.celular}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>WhatsApp</span> <span>{fichaData.whatsapp || '-'}</span></div>
+                                <div className="col-span-2"><span className={`block ${theme.textSec}`}>Correo</span> <span>{fichaData.correo || '-'}</span></div>
+                                <div className="col-span-2"><span className={`block ${theme.textSec}`}>Dirección</span> <span>{fichaData.direccion || '-'}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>Ciudad</span> <span>{fichaData.ciudad || '-'}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>Ficha Física</span> <span className="font-bold">{fichaData.numero_ficha_fisica || 'N/A'}</span></div>
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-800 pb-2">Información Laboral</h4>
+                            <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Información Laboral</h4>
                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><span className="text-slate-500 block">Condición</span> <span className="text-white">{fichaData.condicion_laboral}</span></div>
-                                <div><span className="text-slate-500 block">Nivel</span> <span className="text-white">{fichaData.nivel || '-'}</span></div>
-                                <div className="col-span-2"><span className="text-slate-500 block">Centro Laboral</span> <span className="text-white">{fichaData.institucion || 'Sin IE'}</span></div>
-                                <div className="col-span-2"><span className="text-slate-500 block">UGEL / DRE</span> <span className="text-white">{fichaData.ugel || '-'}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>Condición</span> <span>{fichaData.condicion_laboral}</span></div>
+                                <div><span className={`block ${theme.textSec}`}>Nivel</span> <span>{fichaData.nivel || '-'}</span></div>
+                                <div className="col-span-2"><span className={`block ${theme.textSec}`}>Centro Laboral</span> <span>{fichaData.institucion || 'Sin IE'}</span></div>
+                                <div className="col-span-2"><span className={`block ${theme.textSec}`}>UGEL / DRE</span> <span>{fichaData.ugel || '-'}</span></div>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-800 pb-2">Academico y Documentos</h4>
+                        <h4 className="text-amber-500 font-bold uppercase text-xs border-b border-slate-700/50 pb-2">Academico y Documentos</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
-                                <span className="text-slate-500 block text-xs">Cursos Inscritos</span>
-                                <p className="text-white bg-slate-800 p-3 rounded text-sm mt-1 border border-slate-700">{fichaData.programa}</p>
+                                <span className={`block text-xs ${theme.textSec}`}>Cursos Inscritos</span>
+                                <p className={`p-3 rounded text-sm mt-1 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>{fichaData.programa}</p>
                                 <div className="mt-4 flex gap-4">
-                                    {fichaData.foto_dni_url && <button onClick={()=>abrirVistaImagen(fichaData.foto_dni_url, 'DNI')} className="text-blue-400 hover:text-white border border-blue-900 bg-blue-900/20 px-3 py-1 rounded text-xs flex items-center gap-2"><User size={14}/> Ver DNI</button>}
-                                    {fichaData.foto_contrato_url && <button onClick={()=>abrirVistaImagen(fichaData.foto_contrato_url, 'Contrato')} className="text-amber-400 hover:text-white border border-amber-900 bg-amber-900/20 px-3 py-1 rounded text-xs flex items-center gap-2"><FileText size={14}/> Ver Contrato</button>}
+                                    {fichaData.foto_dni_url && <button onClick={()=>abrirVistaImagen(fichaData.foto_dni_url, 'DNI')} className="text-blue-500 hover:text-blue-600 border border-blue-500/30 bg-blue-500/10 px-3 py-1 rounded text-xs flex items-center gap-2"><User size={14}/> Ver DNI</button>}
+                                    {fichaData.foto_contrato_url && <button onClick={()=>abrirVistaImagen(fichaData.foto_contrato_url, 'Contrato')} className="text-amber-500 hover:text-amber-600 border border-amber-500/30 bg-amber-500/10 px-3 py-1 rounded text-xs flex items-center gap-2"><FileText size={14}/> Ver Contrato</button>}
                                 </div>
                             </div>
-                            <div className="bg-emerald-900/10 p-4 rounded-xl border border-emerald-500/20">
-                                <h5 className="text-emerald-400 font-bold text-xs uppercase mb-2">Resumen Financiero</h5>
+                            <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20">
+                                <h5 className="text-emerald-500 font-bold text-xs uppercase mb-2">Resumen Financiero</h5>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div><span className="text-slate-500 block">Modalidad</span> <span className="text-white">{fichaData.modalidad_pago}</span></div>
-                                    <div><span className="text-slate-500 block">Total Pactado</span> <span className="text-amber-400 font-bold">S/ {fichaData.total_pagar || '0.00'}</span></div>
-                                    <div><span className="text-slate-500 block">Cuotas</span> <span className="text-white">{fichaData.num_cuotas || '1'}</span></div>
-                                    <div><span className="text-slate-500 block">Mensualidad</span> <span className="text-white">S/ {fichaData.monto_mensual || '0.00'}</span></div>
+                                    <div><span className={`block ${theme.textSec}`}>Modalidad</span> <span>{fichaData.modalidad_pago}</span></div>
+                                    <div><span className={`block ${theme.textSec}`}>Total Pactado</span> <span className="text-amber-500 font-bold">S/ {fichaData.total_pagar || '0.00'}</span></div>
+                                    <div><span className={`block ${theme.textSec}`}>Cuotas</span> <span>{fichaData.num_cuotas || '1'}</span></div>
+                                    <div><span className={`block ${theme.textSec}`}>Mensualidad</span> <span>S/ {fichaData.monto_mensual || '0.00'}</span></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-700">
+                    <div className={`pt-4 border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-end pb-4">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2"><DollarSign className="text-emerald-500"/> Historial de Pagos</h3>
-                            <span className="text-xl font-bold text-emerald-400">Total Pagado: S/ {historialPagos.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0).toFixed(2)}</span>
+                            <h3 className="text-xl font-bold flex items-center gap-2"><DollarSign className="text-emerald-500"/> Historial de Pagos</h3>
+                            <span className="text-xl font-bold text-emerald-500">Total Pagado: S/ {historialPagos.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0).toFixed(2)}</span>
                         </div>
-                        <div className="overflow-hidden rounded-xl border border-slate-700">
+                        <div className={`overflow-hidden rounded-xl border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-[#0f1623] text-slate-400 uppercase text-xs font-bold"><tr><th className="px-4 py-3">Fecha</th><th className="px-4 py-3">Concepto</th><th className="px-4 py-3">Medio</th><th className="px-4 py-3 text-right">Monto</th></tr></thead>
-                                <tbody className="divide-y divide-slate-800 bg-[#151e32]">
-                                    {historialPagos.length === 0 ? <tr><td colSpan="4" className="p-6 text-center text-slate-500 italic">No hay pagos registrados aún.</td></tr> : 
+                                <thead className={theme.tableHeader}><tr><th className="px-4 py-3">Fecha</th><th className="px-4 py-3">Concepto</th><th className="px-4 py-3">Medio</th><th className="px-4 py-3 text-right">Monto</th></tr></thead>
+                                <tbody className={`divide-y ${darkMode ? 'divide-slate-800 bg-[#151e32]' : 'divide-slate-200 bg-white'}`}>
+                                    {historialPagos.length === 0 ? <tr><td colSpan="4" className={`p-6 text-center italic ${theme.textSec}`}>No hay pagos registrados aún.</td></tr> : 
                                     historialPagos.map((pago) => (
-                                        <tr key={pago.id} className="hover:bg-[#1a253a] transition-colors">
-                                            <td className="px-4 py-3 text-slate-300 font-mono text-xs">{pago.fecha_pago}</td>
-                                            <td className="px-4 py-3 font-bold text-white">{pago.concepto}</td>
-                                            <td className="px-4 py-3"><span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{pago.medio_pago}</span></td>
-                                            <td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">S/ {parseFloat(pago.monto).toFixed(2)}</td>
+                                        <tr key={pago.id} className={theme.tableRow}>
+                                            <td className={`px-4 py-3 font-mono text-xs ${theme.textSec}`}>{pago.fecha_pago}</td>
+                                            <td className="px-4 py-3 font-bold">{pago.concepto}</td>
+                                            <td className="px-4 py-3"><span className={`text-[10px] px-2 py-0.5 rounded border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>{pago.medio_pago}</span></td>
+                                            <td className="px-4 py-3 text-right font-mono text-emerald-500 font-bold">S/ {parseFloat(pago.monto).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -459,23 +506,23 @@ const Dashboard = () => {
       {modalPayOpen && payData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setModalPayOpen(false)}></div>
-            <div className="bg-[#151e32] w-full max-w-2xl rounded-3xl border border-slate-700 shadow-2xl p-6 relative z-10">
-                <button onClick={() => setModalPayOpen(false)} className="absolute top-4 right-4 p-2 bg-slate-800 rounded-full text-white hover:bg-rose-600 transition-colors"><X size={20}/></button>
+            <div className={`w-full max-w-2xl rounded-3xl border shadow-2xl p-6 relative z-10 ${theme.modalBg}`}>
+                <button onClick={() => setModalPayOpen(false)} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.btnGhost}`}><X size={20}/></button>
                 <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2"><DollarSign className="text-emerald-500"/> Registrar Pago</h2>
-                    <p className="text-slate-400 text-sm mt-1 font-mono">{payData.nombre} • DNI: {payData.dni}</p>
+                    <h2 className="text-2xl font-bold flex items-center gap-2"><DollarSign className="text-emerald-500"/> Registrar Pago</h2>
+                    <p className={`text-sm mt-1 font-mono ${theme.textSec}`}>{payData.nombre} • DNI: {payData.dni}</p>
                 </div>
-                <form onSubmit={registrarPago} className="space-y-4 bg-emerald-900/10 p-6 rounded-2xl border border-emerald-500/20">
+                <form onSubmit={registrarPago} className={`space-y-4 p-6 rounded-2xl border ${darkMode ? 'bg-emerald-900/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'}`}>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1"><label className="text-[10px] text-slate-400 uppercase font-bold">Concepto (Mes)</label><input className="w-full bg-[#0B1120] border border-slate-600 rounded-lg p-3 text-white text-sm" placeholder="Ej. Enero 2026" value={nuevoPago.concepto} onChange={e=>setNuevoPago({...nuevoPago, concepto:e.target.value})} required/></div>
-                        <div className="space-y-1"><label className="text-[10px] text-slate-400 uppercase font-bold">Monto (S/)</label><input type="number" step="0.01" className="w-full bg-[#0B1120] border border-slate-600 rounded-lg p-3 text-white text-sm font-bold text-emerald-400" placeholder="0.00" value={nuevoPago.monto} onChange={e=>setNuevoPago({...nuevoPago, monto:e.target.value})} required/></div>
+                        <div className="space-y-1"><label className={`text-[10px] uppercase font-bold ${theme.textSec}`}>Concepto (Mes)</label><input className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} placeholder="Ej. Enero 2026" value={nuevoPago.concepto} onChange={e=>setNuevoPago({...nuevoPago, concepto:e.target.value})} required/></div>
+                        <div className="space-y-1"><label className={`text-[10px] uppercase font-bold ${theme.textSec}`}>Monto (S/)</label><input type="number" step="0.01" className={`w-full border rounded-lg p-3 text-sm font-bold text-emerald-500 ${theme.input}`} placeholder="0.00" value={nuevoPago.monto} onChange={e=>setNuevoPago({...nuevoPago, monto:e.target.value})} required/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1"><label className="text-[10px] text-slate-400 uppercase font-bold">Medio de Pago</label>
-                        <select className="w-full bg-[#0B1120] border border-slate-600 rounded-lg p-3 text-white text-sm" value={nuevoPago.medio_pago} onChange={e=>setNuevoPago({...nuevoPago, medio_pago:e.target.value})}>
+                        <div className="space-y-1"><label className={`text-[10px] uppercase font-bold ${theme.textSec}`}>Medio de Pago</label>
+                        <select className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} value={nuevoPago.medio_pago} onChange={e=>setNuevoPago({...nuevoPago, medio_pago:e.target.value})}>
                             <option>Descuento por Planilla</option><option>Yape</option><option>Plin</option><option>BCP</option><option>Banco de la Nación</option><option>Interbank</option><option>BBVA</option><option>Efectivo</option><option>Otro</option>
                         </select></div>
-                        <div className="space-y-1"><label className="text-[10px] text-slate-400 uppercase font-bold">Fecha de Pago</label><input type="date" className="w-full bg-[#0B1120] border border-slate-600 rounded-lg p-3 text-white text-sm" value={nuevoPago.fecha_pago} onChange={e=>setNuevoPago({...nuevoPago, fecha_pago:e.target.value})} required/></div>
+                        <div className="space-y-1"><label className={`text-[10px] uppercase font-bold ${theme.textSec}`}>Fecha de Pago</label><input type="date" className={`w-full border rounded-lg p-3 text-sm ${theme.input}`} value={nuevoPago.fecha_pago} onChange={e=>setNuevoPago({...nuevoPago, fecha_pago:e.target.value})} required/></div>
                     </div>
                     <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex justify-center gap-2 mt-2 shadow-lg shadow-emerald-900/20"><Plus size={18}/> Agregar Pago</button>
                 </form>
@@ -487,24 +534,24 @@ const Dashboard = () => {
       {modalUserOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setModalUserOpen(false)}></div>
-            <div className="bg-[#151e32] w-full max-w-lg rounded-3xl border border-slate-700 p-8 relative z-10 shadow-2xl">
-                <button onClick={() => setModalUserOpen(false)} className="absolute top-4 right-4 p-2 bg-slate-800 rounded-full text-white"><X size={20}/></button>
-                <h3 className="text-white font-bold text-xl mb-6 flex items-center gap-2"><User className="text-amber-500"/> {userForm.id ? 'Editar Personal' : 'Nuevo Integrante'}</h3>
+            <div className={`w-full max-w-lg rounded-3xl border shadow-2xl p-8 relative z-10 ${theme.modalBg}`}>
+                <button onClick={() => setModalUserOpen(false)} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.btnGhost}`}><X size={20}/></button>
+                <h3 className="font-bold text-xl mb-6 flex items-center gap-2"><User className="text-amber-500"/> {userForm.id ? 'Editar Personal' : 'Nuevo Integrante'}</h3>
                 <form onSubmit={guardarUsuario} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">Nombres</label><input className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white" value={userForm.nombre} onChange={e=>setUserForm({...userForm, nombre:e.target.value})} required/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">Apellidos</label><input className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white" value={userForm.apellidos} onChange={e=>setUserForm({...userForm, apellidos:e.target.value})} required/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Nombres</label><input className={`w-full border p-3 rounded-xl ${theme.input}`} value={userForm.nombre} onChange={e=>setUserForm({...userForm, nombre:e.target.value})} required/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Apellidos</label><input className={`w-full border p-3 rounded-xl ${theme.input}`} value={userForm.apellidos} onChange={e=>setUserForm({...userForm, apellidos:e.target.value})} required/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 ml-1">DNI (Será la clave)</label><input className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white" value={userForm.dni} onChange={e=>setUserForm({...userForm, dni:e.target.value})} required/></div>
-                        <div><label className="text-xs text-slate-400 ml-1">Celular</label><input className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white" value={userForm.celular} onChange={e=>setUserForm({...userForm, celular:e.target.value})} required/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>DNI (Será la clave)</label><input className={`w-full border p-3 rounded-xl ${theme.input}`} value={userForm.dni} onChange={e=>setUserForm({...userForm, dni:e.target.value})} required/></div>
+                        <div><label className={`text-xs ml-1 ${theme.textSec}`}>Celular</label><input className={`w-full border p-3 rounded-xl ${theme.input}`} value={userForm.celular} onChange={e=>setUserForm({...userForm, celular:e.target.value})} required/></div>
                     </div>
-                    <div><label className="text-xs text-slate-400 ml-1">Correo Electrónico</label><input type="email" className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white" value={userForm.email} onChange={e=>setUserForm({...userForm, email:e.target.value})} required/></div>
+                    <div><label className={`text-xs ml-1 ${theme.textSec}`}>Correo Electrónico</label><input type="email" className={`w-full border p-3 rounded-xl ${theme.input}`} value={userForm.email} onChange={e=>setUserForm({...userForm, email:e.target.value})} required/></div>
                     
                     {/* SELECTOR DE ROLES */}
                     <div>
-                        <label className="text-xs text-slate-400 ml-1">Rol de Acceso</label>
-                        <select className="w-full bg-[#0B1120] border border-slate-700 p-3 rounded-xl text-white outline-none" value={userForm.rol} onChange={e=>setUserForm({...userForm, rol:e.target.value})}>
+                        <label className={`text-xs ml-1 ${theme.textSec}`}>Rol de Acceso</label>
+                        <select className={`w-full border p-3 rounded-xl outline-none ${theme.input}`} value={userForm.rol} onChange={e=>setUserForm({...userForm, rol:e.target.value})}>
                             <option value="promotor">Promotor (Ventas)</option>
                             <option value="supervisor">Supervisor (Solo Lectura)</option>
                             <option value="admin">Administrador (Total)</option>
