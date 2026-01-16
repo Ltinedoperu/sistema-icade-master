@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { LogOut, Search, FileText, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, Download, Share2, DollarSign, Calendar, GraduationCap, PieChart, Filter, Check, XCircle, Sun, Moon, Settings, Upload, Building, MapPin, Phone, CreditCard } from 'lucide-react';
+import { LogOut, Search, FileText, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, Download, Share2, DollarSign, Calendar, GraduationCap, PieChart, Filter, Check, XCircle, Sun, Moon, Settings, Upload, Building, MapPin, Phone, CheckCircle, CreditCard } from 'lucide-react';
 
-// --- GRÁFICOS (BLINDADO) ---
+// --- GRÁFICOS ---
 const SimpleBarChart = ({ data, isDark }) => {
     const safeData = data || [];
     const valores = safeData.map(d => d.value);
@@ -35,17 +35,21 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
 
-  // Datos del Sistema
+  // Datos
   const [currentUserRole, setCurrentUserRole] = useState('promotor');
   const [ventas, setVentas] = useState([]);
   const [cursos, setCursos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [empresa, setEmpresa] = useState({ nombre_empresa: 'ICADE MANAGER', logo_url: '', ruc: '', direccion: '', celular: '' });
-  
-  // Estados Auxiliares
   const [searchTerm, setSearchTerm] = useState('');
-  const [stats, setStats] = useState({ hoy: 0, mes: 0, total: 0 });
-  const [reportData, setReportData] = useState({ daily: [] });
+  
+  // DATOS EMPRESA (Inicializado seguro para evitar errores)
+  const [empresa, setEmpresa] = useState({ 
+      nombre_empresa: 'ICADE MANAGER', 
+      logo_url: '', 
+      ruc: '', 
+      direccion: '', 
+      celular: '' 
+  });
 
   // Filtros
   const [filterPromoter, setFilterPromoter] = useState('');
@@ -67,9 +71,10 @@ const Dashboard = () => {
   const [userForm, setUserForm] = useState({ id: null, nombre: '', apellidos: '', dni: '', celular: '', email: '', rol: 'promotor', activo: true });
   const [modalImgOpen, setModalImgOpen] = useState(false);
   const [imgPreview, setImgPreview] = useState({ url: '', tipo: '' });
-  
-  // Nuevo Estado para Cursos y Configuración
+
   const [nuevoCurso, setNuevoCurso] = useState({ nivel: 'Inicial', nombre: '', tipo: 'General' });
+  const [stats, setStats] = useState({ hoy: 0, mes: 0, total: 0 });
+  const [reportData, setReportData] = useState({ daily: [] });
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => { 
@@ -79,8 +84,6 @@ const Dashboard = () => {
       if (savedTheme === 'light') setDarkMode(false);
       
       fetchData(); 
-      fetchEmpresaData(); // Cargar datos de empresa al inicio
-
       const handleEsc = (event) => { if (event.key === 'Escape') { closeAllModals(); }};
       window.addEventListener('keydown', handleEsc); return () => window.removeEventListener('keydown', handleEsc);
   }, []);
@@ -91,7 +94,6 @@ const Dashboard = () => {
       localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
-  // --- TEMA ---
   const theme = {
       bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-200',
       text: darkMode ? 'text-slate-200' : 'text-slate-900',
@@ -118,45 +120,35 @@ const Dashboard = () => {
         const { data: v } = await supabase.from('clientes').select('*').order('created_at', { ascending: false }); setVentas(v || []); 
         calcularEstadisticas(v || []);
         const { data: c } = await supabase.from('cursos').select('*').order('created_at', { ascending: false }); setCursos(c || []);
+        
+        // Carga Segura de Configuración
+        const { data: conf } = await supabase.from('configuracion').select('*').single();
+        if (conf) {
+            // Protección contra valores nulos que rompen React
+            setEmpresa({
+                nombre_empresa: conf.nombre_empresa || 'ICADE MANAGER',
+                logo_url: conf.logo_url || '',
+                ruc: conf.ruc || '',
+                direccion: conf.direccion || '',
+                celular: conf.celular || ''
+            });
+        }
     } catch(e) { console.error(e); }
     setLoading(false);
   };
 
-  // --- NUEVA LÓGICA DE EMPRESA ---
-  const fetchEmpresaData = async () => {
-      try {
-          const { data, error } = await supabase.from('configuracion').select('*').single();
-          if (data && !error) setEmpresa(data);
-      } catch (e) {
-          // Si falla (ej. tabla no creada), usamos el default silenciosamente
-          console.log("Usando configuración por defecto");
-      }
-  };
-
+  // --- FUNCIONES CONFIGURACIÓN (Blindadas) ---
   const guardarConfiguracion = async (e) => {
       e.preventDefault();
       try {
-          // Si existe ID actualizamos, si no insertamos. Como usamos .single() arriba, asumimos que hay 1 registro o ninguno.
           const { data: existing } = await supabase.from('configuracion').select('id').single();
-          
-          let error;
           if (existing) {
-              const { error: updateError } = await supabase.from('configuracion').update(empresa).eq('id', existing.id);
-              error = updateError;
+              await supabase.from('configuracion').update(empresa).eq('id', existing.id);
           } else {
-              const { error: insertError } = await supabase.from('configuracion').insert([empresa]);
-              error = insertError;
+              await supabase.from('configuracion').insert([empresa]);
           }
-
-          if (!error) {
-              alert("Configuración guardada exitosamente.");
-              fetchEmpresaData();
-          } else {
-              throw error;
-          }
-      } catch (err) {
-          alert("Error al guardar: " + err.message + ". Asegúrate de haber creado la tabla 'configuracion' en Supabase.");
-      }
+          alert("Configuración guardada.");
+      } catch (err) { alert("Error al guardar (Verifica que la tabla 'configuracion' exista)."); }
   };
 
   const handleLogoUpload = async (e) => {
@@ -164,19 +156,13 @@ const Dashboard = () => {
       if (!file) return;
       setUploadingLogo(true);
       try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `logo-empresa-${Date.now()}.${fileExt}`;
-          const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
-          
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName);
-          setEmpresa({ ...empresa, logo_url: publicUrl });
-      } catch (error) {
-          alert("Error subiendo logo: " + error.message);
-      } finally {
-          setUploadingLogo(false);
-      }
+          const fileName = `logo-${Date.now()}.${file.name.split('.').pop()}`;
+          const { error } = await supabase.storage.from('logos').upload(fileName, file);
+          if (error) throw error;
+          const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+          setEmpresa({ ...empresa, logo_url: data.publicUrl });
+      } catch (error) { alert("Error subiendo logo: " + error.message); } 
+      finally { setUploadingLogo(false); }
   };
 
   const obtenerNombreAsesor = (email, nombreGuardado) => {
@@ -213,7 +199,6 @@ const Dashboard = () => {
       return matchSearch && matchPromoter && matchCity && matchUgel && matchDate;
   });
 
-  // --- LÓGICA MODALES (BLINDADA) ---
   const abrirEditar = (venta) => { setEditForm(venta); setModalEditOpen(true); };
   const guardarEdicion = async (e) => {
     e.preventDefault();
@@ -291,14 +276,12 @@ const Dashboard = () => {
       {/* NAVBAR */}
       <nav className={`${theme.nav} px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-40 border-b transition-colors duration-300`}>
         <div className="flex items-center gap-3">
-            {/* LOGO DINÁMICO */}
             {empresa.logo_url ? (
                 <img src={empresa.logo_url} alt="Logo" className="w-12 h-12 object-contain rounded-lg bg-white p-1" />
             ) : (
                 <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center text-[#0B1120] font-bold text-xl -rotate-3">I</div>
             )}
             <div>
-                {/* NOMBRE DINÁMICO */}
                 <h1 className="text-xl font-bold uppercase tracking-tight">{empresa.nombre_empresa}</h1>
                 <p className={`text-[10px] uppercase font-bold ${theme.textDim}`}>Rol: {currentUserRole}</p>
             </div>
@@ -312,7 +295,6 @@ const Dashboard = () => {
              {['ventas', 'reportes', 'cursos', 'equipo'].map((v) => (
                  <button key={v} onClick={() => setView(v)} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap capitalize transition-all ${view === v ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-slate-800`}`}>{v}</button>
              ))}
-             {/* BOTÓN CONFIGURACIÓN */}
              {currentUserRole === 'admin' && (
                  <button onClick={() => setView('configuracion')} className={`px-3 py-1.5 rounded-md transition-all ${view === 'configuracion' ? 'bg-amber-500 text-[#0B1120]' : `${theme.textDim} hover:text-slate-800`}`} title="Configuración"><Settings size={18}/></button>
              )}
@@ -323,6 +305,7 @@ const Dashboard = () => {
 
       <main className="max-w-[98%] mx-auto p-4 md:p-6 transition-colors duration-300">
         
+        {/* VISTAS EXISTENTES (Ventas, Reportes, Equipo, Cursos) */}
         {view === 'ventas' && (
             <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -401,7 +384,7 @@ const Dashboard = () => {
             </>
         )}
 
-        {/* --- VISTA DE CONFIGURACIÓN DE EMPRESA --- */}
+        {/* --- VISTA CONFIGURACIÓN (Blindada) --- */}
         {view === 'configuracion' && (
             <div className={`max-w-2xl mx-auto p-8 rounded-2xl border shadow-lg animate-fadeIn ${theme.card}`}>
                 <div className="flex items-center gap-3 mb-8 border-b border-slate-700/20 pb-4">
@@ -415,7 +398,6 @@ const Dashboard = () => {
                 </div>
 
                 <form onSubmit={guardarConfiguracion} className="space-y-6">
-                    {/* Logo Upload */}
                     <div className="flex items-center gap-6">
                         <div className={`w-24 h-24 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden relative ${darkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-300 bg-slate-100'}`}>
                             {empresa.logo_url ? (
@@ -426,36 +408,35 @@ const Dashboard = () => {
                             {uploadingLogo && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
                         </div>
                         <div className="flex-1">
-                            <label className={`block text-sm font-bold mb-2 ${theme.text}`}>Logo de la Empresa</label>
+                            <label className={`block text-sm font-bold mb-2 ${theme.text}`}>Logo</label>
                             <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 transition-colors shadow-sm">
                                 <Upload size={16} /> Subir Imagen
                                 <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
                             </label>
-                            <p className={`text-xs mt-2 ${theme.textDim}`}>Recomendado: PNG o JPG transparente (max. 2MB)</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={`block text-xs font-bold uppercase mb-2 ${theme.textDim}`}>Nombre del Sistema</label>
-                            <input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={empresa.nombre_empresa} onChange={e=>setEmpresa({...empresa, nombre_empresa: e.target.value})} placeholder="Ej. ICADE PERÚ" required />
+                            <input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={empresa.nombre_empresa || ''} onChange={e=>setEmpresa({...empresa, nombre_empresa: e.target.value})} placeholder="Ej. ICADE PERÚ" required />
                         </div>
                         <div>
                             <label className={`block text-xs font-bold uppercase mb-2 ${theme.textDim}`}>RUC</label>
-                            <input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={empresa.ruc} onChange={e=>setEmpresa({...empresa, ruc: e.target.value})} placeholder="20123456789" />
+                            <input className={`w-full border rounded-xl p-3 outline-none ${theme.input}`} value={empresa.ruc || ''} onChange={e=>setEmpresa({...empresa, ruc: e.target.value})} placeholder="20123456789" />
                         </div>
                         <div>
-                            <label className={`block text-xs font-bold uppercase mb-2 ${theme.textDim}`}>Celular de Contacto</label>
+                            <label className={`block text-xs font-bold uppercase mb-2 ${theme.textDim}`}>Celular</label>
                             <div className="relative">
                                 <Phone className={`absolute left-3 top-3.5 ${theme.textDim}`} size={16}/>
-                                <input className={`w-full border rounded-xl p-3 pl-10 outline-none ${theme.input}`} value={empresa.celular} onChange={e=>setEmpresa({...empresa, celular: e.target.value})} placeholder="999 888 777" />
+                                <input className={`w-full border rounded-xl p-3 pl-10 outline-none ${theme.input}`} value={empresa.celular || ''} onChange={e=>setEmpresa({...empresa, celular: e.target.value})} placeholder="999 888 777" />
                             </div>
                         </div>
                         <div>
                             <label className={`block text-xs font-bold uppercase mb-2 ${theme.textDim}`}>Dirección</label>
                             <div className="relative">
                                 <MapPin className={`absolute left-3 top-3.5 ${theme.textDim}`} size={16}/>
-                                <input className={`w-full border rounded-xl p-3 pl-10 outline-none ${theme.input}`} value={empresa.direccion} onChange={e=>setEmpresa({...empresa, direccion: e.target.value})} placeholder="Av. Principal 123" />
+                                <input className={`w-full border rounded-xl p-3 pl-10 outline-none ${theme.input}`} value={empresa.direccion || ''} onChange={e=>setEmpresa({...empresa, direccion: e.target.value})} placeholder="Av. Principal 123" />
                             </div>
                         </div>
                     </div>
