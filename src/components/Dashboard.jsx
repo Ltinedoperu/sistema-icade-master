@@ -15,7 +15,7 @@ const SimpleBarChart = ({ data }) => {
                     </div>
                     <span className="text-[10px] text-slate-500 truncate w-full text-center">{d.label}</span>
                 </div>
-            ))}setSearchTerm
+            ))
         </div>
     );
 };
