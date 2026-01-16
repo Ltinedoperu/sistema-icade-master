@@ -14,7 +14,7 @@ const SimpleBarChart = ({ data }) => {
                         <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black px-1 rounded">{d.value}</span>
                     </div>
                     <span className="text-[10px] text-slate-500 truncate w-full text-center">{d.label}</span>
-                </div>
+                </div>fdf
             ))
         </div>
     );
