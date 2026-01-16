@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { LogOut, Search, FileText, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, Download, Share2, DollarSign, Calendar, GraduationCap, PieChart, Filter, Check, XCircle, Sun, Moon } from 'lucide-react';
+import { LogOut, Search, FileText, User, Plus, Trash2, Edit, X, BarChart3, TrendingUp, Users, Shield, Power, Eye, Download, Share2, DollarSign, Calendar, GraduationCap, PieChart, Filter, Check, XCircle, Sun, Moon, Briefcase, MapPin, CreditCard } from 'lucide-react';
 
-// --- GRÁFICOS (Adaptados para alto contraste) ---
+// --- GRÁFICOS (Estilo Ajustado) ---
 const SimpleBarChart = ({ data, isDark }) => {
     const safeData = data || [];
     const valores = safeData.map(d => d.value);
     const max = valores.length > 0 ? Math.max(...valores) : 1;
 
-    // Colores dinámicos
+    // Colores con más contraste para el modo claro
     const textColor = isDark ? 'text-slate-500' : 'text-slate-700 font-bold';
     const borderColor = isDark ? 'border-slate-700' : 'border-slate-400';
     const tooltipBg = isDark ? 'bg-black text-white' : 'bg-slate-800 text-white';
@@ -18,7 +18,7 @@ const SimpleBarChart = ({ data, isDark }) => {
         <div className={`flex items-end gap-2 h-32 pt-4 border-b ${borderColor}`}>
             {safeData.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-70 hover:opacity-100" style={{ height: `${(d.value / max) * 100}%` }}>
+                    <div className="w-full bg-emerald-500 rounded-t hover:bg-emerald-400 transition-all relative group opacity-80 hover:opacity-100" style={{ height: `${(d.value / max) * 100}%` }}>
                         <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${tooltipBg}`}>
                             {d.value}
                         </span>
@@ -35,7 +35,7 @@ const Dashboard = () => {
   const [view, setView] = useState('ventas');
   const [loading, setLoading] = useState(true);
   
-  // --- TEMA (ESTADO PRINCIPAL) ---
+  // --- TEMA ---
   const [darkMode, setDarkMode] = useState(true);
 
   // Datos
@@ -73,10 +73,8 @@ const Dashboard = () => {
   useEffect(() => { 
       const role = localStorage.getItem('role') || 'promotor';
       setCurrentUserRole(role);
-      
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'light') setDarkMode(false);
-
       fetchData(); 
       const handleEsc = (event) => { if (event.key === 'Escape') { closeAllModals(); }};
       window.addEventListener('keydown', handleEsc); return () => window.removeEventListener('keydown', handleEsc);
@@ -88,30 +86,31 @@ const Dashboard = () => {
       localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
-  // --- DICCIONARIO DE COLORES (ALTO CONTRASTE) ---
+  // --- PALETA DE COLORES (Contrastes Mejorados) ---
   const theme = {
-      // Fondo: Ahora es GRIS OSCURO (slate-200) en light mode para que resalte
-      bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-200', 
+      // Fondo: Slate-200 (Gris azulado sólido) para que resalte lo blanco
+      bg: darkMode ? 'bg-[#0B1120]' : 'bg-slate-200',
       
-      // Textos
+      // Texto: Slate-900 (Casi negro) para máxima legibilidad
       text: darkMode ? 'text-slate-200' : 'text-slate-900',
       textDim: darkMode ? 'text-slate-400' : 'text-slate-600',
+      textAccent: darkMode ? 'text-amber-500' : 'text-amber-700', // Ámbar más oscuro en light
       
-      // Tarjetas: Blancas puras con sombra y borde visible
+      // Tarjetas: Blanco puro con sombra fuerte y borde visible
       card: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-md',
       
-      // Navbar: Blanca en light mode
+      // Navbar: Blanco con borde
       nav: darkMode ? 'bg-[#151e32] border-slate-800' : 'bg-white border-slate-300 shadow-sm',
       
-      // Inputs: Blancos con borde gris fuerte
-      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-white border-slate-400 text-slate-900 focus:border-amber-500',
+      // Inputs: Fondo gris muy claro para diferenciar del blanco de la tarjeta
+      input: darkMode ? 'bg-[#0B1120] border-slate-700 text-white' : 'bg-slate-50 border-slate-400 text-slate-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500',
       
       // Tablas
-      tableHead: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-100 text-slate-800 border-b border-slate-300 font-bold',
-      tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-amber-50 border-slate-300 bg-white',
+      tableHead: darkMode ? 'bg-[#0f1623] text-amber-500' : 'bg-slate-200 text-slate-800 border-b border-slate-300 font-bold',
+      tableRow: darkMode ? 'hover:bg-[#1a253a] border-slate-800/50' : 'hover:bg-blue-50 border-slate-300 bg-white', // Hover celeste suave
       divider: darkMode ? 'divide-slate-800' : 'divide-slate-300',
       
-      // Botones fantasma (bordes)
+      // Botones fantasma
       btnGhost: darkMode ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-white text-slate-700 border-slate-400 hover:bg-slate-100 shadow-sm',
       
       // Modales
@@ -323,7 +322,7 @@ const Dashboard = () => {
                                     <td className="px-6 py-4 border-b border-inherit"><div className="text-sm">{venta.condicion_laboral}</div><div className={`text-xs ${theme.textDim}`}>{venta.institucion}</div><div className={`text-[10px] ${theme.textDim}`}>{venta.ciudad}</div></td>
                                     <td className="px-6 py-4 border-b border-inherit"><span className="px-2 py-1 rounded text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">{venta.modalidad_pago}</span></td>
                                     <td className="px-6 py-4 border-b border-inherit text-xs max-w-xs">
-                                        <div className="text-amber-500 font-bold mb-1">{venta.tipo_registro}</div>
+                                        <div className={`font-bold mb-1 ${theme.textAccent}`}>{venta.tipo_registro}</div>
                                         {venta.modalidad_estudio === 'Acelerada' && <span className="bg-purple-500/20 text-purple-400 px-1 rounded border border-purple-500/30 text-[10px] mr-1">Acelerada</span>}
                                         <span className={`truncate block ${theme.textDim}`}>{venta.programa}</span>
                                     </td>
@@ -434,7 +433,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setModalFichaOpen(false)}></div>
             <div className={`w-full max-w-5xl rounded-3xl border shadow-2xl relative my-8 overflow-y-auto max-h-[95vh] z-10 flex flex-col ${theme.modalBg} ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                <div className={`flex justify-between items-center p-6 border-b rounded-t-3xl sticky top-0 z-20 ${darkMode ? 'bg-[#0f1623] border-slate-800' : 'bg-white border-slate-200'}`}>
+                <div className={`flex justify-between items-center p-6 border-b rounded-t-3xl sticky top-0 z-20 ${darkMode ? 'bg-[#0f1623] border-slate-800' : 'bg-slate-200 border-slate-300'}`}>
                     <div>
                         <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="text-amber-500"/> {fichaData.tipo_registro}: {fichaData.nombre}</h2>
                         <p className={`text-sm flex gap-2 ${theme.textDim}`}><span>{fichaData.dni}</span> • <span className="text-emerald-500 font-bold">{fichaData.modalidad_estudio}</span></p>
@@ -492,7 +491,7 @@ const Dashboard = () => {
                     <div className={`pt-4 border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                         <div className="flex justify-between items-end pb-4">
                             <h3 className="text-xl font-bold flex items-center gap-2"><DollarSign className="text-emerald-500"/> Historial de Pagos</h3>
-                            <span className="text-xl font-bold text-emerald-500">Total Pagado: S/ {(historialPagos || []).reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0).toFixed(2)}</span>
+                            <span className="text-xl font-bold text-emerald-500">Total Pagado: S/ {historialPagos.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0).toFixed(2)}</span>
                         </div>
                         <div className={`overflow-hidden rounded-xl border ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                             <table className="w-full text-sm text-left">
