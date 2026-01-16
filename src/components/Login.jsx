@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader } from 'lucide-react';
 
 // --- PEGA AQUÍ TU LINK DE IMGBB (Mantén las comillas) ---
-const LOGO_URL = "logo_icade.png"; 
+const LOGO_URL = "./logo_icade.png"; 
 // --------------------------------------------------------
 
 const Login = () => {
